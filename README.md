@@ -4,6 +4,8 @@
 
 This repository provides the reference implementation as cellular module ports for [Quectel BG96](https://www.quectel.com/product/lte-bg96-cat-m1-nb1-egprs/). This repository should be used with [FreeRTOS-Cellular-Interface](https://github.com/FreeRTOS/FreeRTOS-Cellular-Interface). See [FreeRTOS-Cellular-Interface README](https://github.com/FreeRTOS/FreeRTOS-Cellular-Interface/blob/main/README.md) for more details.
 
+## Use Case
+
 There is also an use case at [MQTT_Mutual_Auth_Demo_with_BG96](https://github.com/FreeRTOS/FreeRTOS/tree/main/FreeRTOS-Plus/Demo/FreeRTOS_Cellular_Interface_Windows_Simulator/MQTT_Mutual_Auth_Demo_with_BG96) as a demonstration to run BG96 with FreeRTOS Windows Simulator.
 
 ## How Does Community Members to Contribute a Cellular Module Port
