@@ -1,4 +1,4 @@
-# FreeRTOS Cellular Interface Reference Implementation Quectel BG96
+# FreeRTOS Cellular Interface Reference Quectel BG96
 
 ## Introduction
 
@@ -14,4 +14,4 @@ See [CONTRIBUTING](CONTRIBUTING.md#security-issue-notifications) for more inform
 
 ## License
 
-This library is licensed under the MIT-0 License. See the [LICENSE](https://github.com/FreeRTOS/freertos-cellular-interface-reference-implementation-quectel-bg96/blob/main/LICENSE) file.
+The FreeRTOS Cellular Interface library is distributed under MIT open source license. The code in this repository is licensed under the MIT License. See the [LICENSE](https://github.com/FreeRTOS/FreeRTOS-Cellular-Interface-Reference-Quectel-BG96/blob/main/LICENSE) file.
