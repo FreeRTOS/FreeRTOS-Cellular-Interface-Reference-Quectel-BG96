@@ -18,4 +18,4 @@ See [CONTRIBUTING](CONTRIBUTING.md#security-issue-notifications) for more inform
 
 ## License
 
-The FreeRTOS Cellular Interface library is distributed under MIT open source license. The code in this repository is licensed under the MIT License. See the [LICENSE](https://github.com/FreeRTOS/FreeRTOS-Cellular-Interface-Reference-Quectel-BG96/blob/main/LICENSE) file.
+The FreeRTOS Cellular Interface library is distributed under MIT open source license. The code in this repository is licensed under the MIT License. See the [LICENSE](LICENSE) file.
