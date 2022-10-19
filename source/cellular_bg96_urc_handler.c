@@ -120,7 +120,7 @@ static CellularPktStatus_t _parseSocketOpenNextTok( const char * pToken,
         }
         else
         {
-            LogError( ( ( "_parseSocketOpen: Socket open callback for conn %d is not set!!", sockIndex ) ) );
+            LogError( ( "_parseSocketOpen: Socket open callback for conn %d is not set!!", sockIndex ) );
         }
     }
 
@@ -174,7 +174,7 @@ static void _Cellular_ProcessSocketOpen( CellularContext_t * pContext,
             }
             else
             {
-                LogError( ( ( "Error processing in Socket index. token %s", pToken ) ) );
+                LogError( ( "Error processing in Socket index. token %s", pToken ) );
                 atCoreStatus = CELLULAR_AT_ERROR;
             }
         }
@@ -370,7 +370,7 @@ static void _informDataReadyToUpperLayer( CellularSocketContext_t * pSocketData 
     }
     else
     {
-        LogError( ( ( "_parseSocketUrc: Data ready callback not set!!" ) ) );
+        LogError( ( "_parseSocketUrc: Data ready callback not set!!" ) );
     }
 }
 
@@ -401,7 +401,7 @@ static CellularPktStatus_t _parseSocketUrcRecv( const CellularContext_t * pConte
             }
             else
             {
-                LogError( ( ( "Error in processing SockIndex. Token %s", pToken ) ) );
+                LogError( ( "Error in processing SockIndex. Token %s", pToken ) );
                 atCoreStatus = CELLULAR_AT_ERROR;
             }
         }
@@ -462,7 +462,7 @@ static CellularPktStatus_t _parseSocketUrcClosed( const CellularContext_t * pCon
         }
         else
         {
-            LogError( ( ( "Error in processing Socket Index. Token %s", pToken ) ) );
+            LogError( ( "Error in processing Socket Index. Token %s", pToken ) );
             atCoreStatus = CELLULAR_AT_ERROR;
         }
     }
@@ -540,7 +540,7 @@ static CellularPktStatus_t _parseSocketUrcAct( const CellularContext_t * pContex
         else
         {
             atCoreStatus = CELLULAR_AT_ERROR;
-            LogError( ( ( "Error in processing Context Id. Token %s", pToken ) ) );
+            LogError( ( "Error in processing Context Id. Token %s", pToken ) );
         }
     }
 
@@ -694,7 +694,7 @@ static void _Cellular_ProcessPowerDown( CellularContext_t * pContext,
 
     if( pContext == NULL )
     {
-        LogError( ( ( "_Cellular_ProcessPowerDown: Context not set" ) ) );
+        LogError( ( "_Cellular_ProcessPowerDown: Context not set" ) );
     }
     else
     {
@@ -715,7 +715,7 @@ static void _Cellular_ProcessPsmPowerDown( CellularContext_t * pContext,
 
     if( pContext == NULL )
     {
-        LogError( ( ( "_Cellular_ProcessPowerDown: Context not set" ) ) );
+        LogError( ( "_Cellular_ProcessPowerDown: Context not set" ) );
     }
     else
     {
@@ -761,7 +761,7 @@ CellularPktStatus_t _Cellular_ParseSimstat( char * pInputStr,
     if( ( pInputStr == NULL ) || ( strlen( pInputStr ) == 0U ) ||
         ( strlen( pInputStr ) < 2U ) || ( pSimState == NULL ) )
     {
-        LogError( ( ( "_Cellular_ProcessQsimstat Input data is invalid %s", pInputStr ) ) );
+        LogError( ( "_Cellular_ProcessQsimstat Input data is invalid %s", pInputStr ) );
         pktStatus = CELLULAR_PKT_STATUS_BAD_PARAM;
     }
     else
@@ -793,7 +793,7 @@ CellularPktStatus_t _Cellular_ParseSimstat( char * pInputStr,
             }
             else
             {
-                LogError( ( ( "Error in processing SIM state. token %s", pToken ) ) );
+                LogError( ( "Error in processing SIM state. token %s", pToken ) );
                 atCoreStatus = CELLULAR_AT_ERROR;
             }
         }
