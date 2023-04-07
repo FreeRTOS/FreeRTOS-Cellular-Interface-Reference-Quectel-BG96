@@ -1800,12 +1800,6 @@ static CellularError_t storeAccessModeAndAddress( CellularContext_t * pContext,
                     socketHandle->socketState ) );
         cellularStatus = CELLULAR_INTERNAL_FAILURE;
     }
-    else if( dataAccessMode != CELLULAR_ACCESSMODE_BUFFER )
-    {
-        LogError( ( "storeAccessModeAndAddress, Access mode not supported %d",
-                    dataAccessMode ) );
-        cellularStatus = CELLULAR_UNSUPPORTED;
-    }
     else
     {
         socketHandle->remoteSocketAddress.port = pRemoteSocketAddress->port;
@@ -2563,7 +2557,7 @@ CellularError_t Cellular_SocketRecv( CellularHandle_t cellularHandle,
             cellularStatus = CELLULAR_SOCKET_CLOSED;
         }
     }
-    else
+    else if( socketHandle->dataMode == CELLULAR_ACCESSMODE_BUFFER )
     {
         /* Update recvLen to maximum module length. */
         if( CELLULAR_MAX_RECV_DATA_LEN <= bufferLength )
@@ -2593,6 +2587,65 @@ CellularError_t Cellular_SocketRecv( CellularHandle_t cellularHandle,
             LogError( ( "_Cellular_RecvData: Data Receive fail, pktStatus: %d", pktStatus ) );
             cellularStatus = _Cellular_TranslatePktStatus( pktStatus );
         }
+    }
+    else
+    {
+        #if CELLULAR_BG96_SUPPPORT_DIRECT_PUSH_SOCKET
+        {
+            if( socketHandle->dataMode == CELLULAR_ACCESSMODE_DIRECT_PUSH )
+            {
+                /* Copy from the buffer. */
+                cellularModuleContext_t * pModuleContext = NULL;
+                cellularStatus = _Cellular_GetModuleContext( pContext, ( void ** ) &pModuleContext );
+
+                if( cellularStatus != CELLULAR_SUCCESS )
+                {
+                    pktStatus = CELLULAR_PKT_STATUS_INVALID_HANDLE;
+                }
+                else
+                {
+                    uint8_t *pSocketDataPtr;
+                    uint32_t socketDataLength;
+
+                    PlatformMutex_Lock( &pModuleContext->contextMutex );
+
+                    pSocketDataPtr = &pModuleContext->pSocketBuffer[ socketHandle->socketId ];
+                    socketDataLength = pModuleContext->pSocketDataSize[ socketHandle->socketId ];
+
+                    if( bufferLength > socketDataLength )
+                    {
+                        *pReceivedDataLength = socketDataLength;
+                    }
+                    else
+                    {
+                        *pReceivedDataLength = bufferLength;
+                    }
+
+                    /* Copy the data to the socket buffer. */
+                    memcpy( pBuffer, pSocketDataPtr, *pReceivedDataLength );
+
+                    /* Garbage collection. Decrease the size of data in socket buffer
+                     * and move the data to start of socket buffer. */
+                    pModuleContext->pSocketDataSize[ socketHandle->socketId ] -= *pReceivedDataLength;
+                    memmove( pSocketDataPtr, &pSocketDataPtr[ *pReceivedDataLength ], ( socketDataLength - *pReceivedDataLength ) );
+
+                    PlatformMutex_Unlock( &pModuleContext->contextMutex );
+                }
+            }
+            else
+            {
+                LogError( ( "storeAccessModeAndAddress, Access mode not supported %d.",
+                            socketHandle->dataMode ) );
+                cellularStatus = CELLULAR_UNSUPPORTED;
+            }
+        }
+        #else   /* CELLULAR_BG96_SUPPPORT_DIRECT_PUSH_SOCKET. */
+        {
+            LogError( ( "storeAccessModeAndAddress, Access mode not supported %d.",
+                        socketHandle->dataMode ) );
+            cellularStatus = CELLULAR_UNSUPPORTED;
+        }
+        #endif  /* CELLULAR_BG96_SUPPPORT_DIRECT_PUSH_SOCKET. */
     }
 
     return cellularStatus;
@@ -3133,7 +3186,7 @@ CellularError_t Cellular_GetHostByName( CellularHandle_t cellularHandle,
 
     if( cellularStatus == CELLULAR_SUCCESS )
     {
-        PlatformMutex_Lock( &pModuleContext->dnsQueryMutex );
+        PlatformMutex_Lock( &pModuleContext->contextMutex );
         pModuleContext->dnsResultNumber = 0;
         pModuleContext->dnsIndex = 0;
         ( void ) xQueueReset( pModuleContext->pktDnsQueue );
@@ -3154,7 +3207,7 @@ CellularError_t Cellular_GetHostByName( CellularHandle_t cellularHandle,
         {
             LogError( ( "Cellular_GetHostByName: couldn't resolve host name" ) );
             cellularStatus = _Cellular_TranslatePktStatus( pktStatus );
-            PlatformMutex_Unlock( &pModuleContext->dnsQueryMutex );
+            PlatformMutex_Unlock( &pModuleContext->contextMutex );
         }
     }
 
@@ -3175,7 +3228,7 @@ CellularError_t Cellular_GetHostByName( CellularHandle_t cellularHandle,
             cellularStatus = CELLULAR_TIMEOUT;
         }
 
-        PlatformMutex_Unlock( &pModuleContext->dnsQueryMutex );
+        PlatformMutex_Unlock( &pModuleContext->contextMutex );
     }
 
     return cellularStatus;

@@ -158,7 +158,7 @@ CellularError_t Cellular_ModuleInit( const CellularContext_t * pContext,
         ( void ) memset( &cellularBg96Context, 0, sizeof( cellularModuleContext_t ) );
 
         /* Create the mutex for DNS. */
-        status = PlatformMutex_Create( &cellularBg96Context.dnsQueryMutex, false );
+        status = PlatformMutex_Create( &cellularBg96Context.contextMutex, false );
 
         if( status == false )
         {
@@ -171,7 +171,7 @@ CellularError_t Cellular_ModuleInit( const CellularContext_t * pContext,
 
             if( cellularBg96Context.pktDnsQueue == NULL )
             {
-                PlatformMutex_Destroy( &cellularBg96Context.dnsQueryMutex );
+                PlatformMutex_Destroy( &cellularBg96Context.contextMutex );
                 cellularStatus = CELLULAR_NO_MEMORY;
             }
             else
@@ -179,6 +179,16 @@ CellularError_t Cellular_ModuleInit( const CellularContext_t * pContext,
                 *ppModuleContext = ( void * ) &cellularBg96Context;
             }
         }
+
+        #if CELLULAR_BG96_SUPPPORT_DIRECT_PUSH_SOCKET
+        {
+            /* Register the URC data callback. */
+            if( cellularStatus == CELLULAR_SUCCESS )
+            {
+                cellularStatus = _Cellular_RegisterUrcDataCallback( pContext, Cellular_BG96UrcDataCallback, pContext );
+            }
+        }
+        #endif /* CELLULAR_BG96_SUPPPORT_DIRECT_PUSH_SOCKET. */
     }
 
     return cellularStatus;
@@ -202,7 +212,7 @@ CellularError_t Cellular_ModuleCleanUp( const CellularContext_t * pContext )
         vQueueDelete( cellularBg96Context.pktDnsQueue );
 
         /* Delete the mutex for DNS. */
-        PlatformMutex_Destroy( &cellularBg96Context.dnsQueryMutex );
+        PlatformMutex_Destroy( &cellularBg96Context.contextMutex );
     }
 
     return cellularStatus;

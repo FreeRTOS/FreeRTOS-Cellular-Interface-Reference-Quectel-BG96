@@ -40,6 +40,14 @@
 
 /*-----------------------------------------------------------*/
 
+#define CELLULAR_BG96_DIRECT_PUSH_SOCKET_URC_PFREFIX        "+QIURC: \"recv\","
+#define CELLULAR_BG96_DIRECT_PUSH_SOCKET_URC_PFREFIX_LEN    15
+
+/* The length for the string "+QIURC: \"recv\",<socket_index:1>,<socket_size:1~4>\r\n". */
+#define CELLULAR_BG96_DIRECT_PUSH_SOCKET_URC_PFREFIX_MAX_LEN    24
+
+/*-----------------------------------------------------------*/
+
 static void _Cellular_ProcessPowerDown( CellularContext_t * pContext,
                                         char * pInputLine );
 static void _Cellular_ProcessPsmPowerDown( CellularContext_t * pContext,
@@ -120,7 +128,7 @@ static CellularPktStatus_t _parseSocketOpenNextTok( const char * pToken,
         }
         else
         {
-            LogError( ( ( "_parseSocketOpen: Socket open callback for conn %d is not set!!", sockIndex ) ) );
+            LogError( ( "_parseSocketOpen: Socket open callback for conn %d is not set!!", sockIndex ) );
         }
     }
 
@@ -804,4 +812,203 @@ CellularPktStatus_t _Cellular_ParseSimstat( char * pInputStr,
     return pktStatus;
 }
 
+/*-----------------------------------------------------------*/
+
+#if CELLULAR_BG96_SUPPPORT_DIRECT_PUSH_SOCKET
+CellularPktStatus_t Cellular_BG96UrcDataCallback( void * pUrcDataCallbackContext,
+                                                  char * pBuffer,
+                                                  uint32_t bufferLength,
+                                                  uint32_t * pUrcDataLength )
+{
+    CellularContext_t * pContext = ( CellularContext_t * ) pUrcDataCallbackContext;
+    cellularModuleContext_t * pModuleContext = NULL;
+    char pLocaLine[ CELLULAR_BG96_DIRECT_PUSH_SOCKET_URC_PFREFIX_MAX_LEN ];
+    char *pLocalLinePtr = pLocaLine;
+    uint32_t dataLength;
+    char * pTempLine = pBuffer;
+    char * pToken;
+    uint32_t i = 0;
+    uint32_t prefixLength;
+    uint32_t suffixLength = 2;
+    CellularPktStatus_t pktStatus;
+    CellularATError_t atCoreStatus = CELLULAR_AT_SUCCESS;
+    int32_t tempValue;
+    uint32_t socketIndex;
+
+    if( pUrcDataCallbackContext == NULL )
+    {
+        LogError( ( "Cellular_BG96UrcDataCallback : pUrcDataCallbackContext is NULL." ) );
+        pktStatus = CELLULAR_PKT_STATUS_BAD_PARAM;
+    }
+    else if( pBuffer == NULL )
+    {
+        LogError( ( "Cellular_BG96UrcDataCallback : pBuffer is NULL." ) );
+        pktStatus = CELLULAR_PKT_STATUS_BAD_PARAM;
+    }
+    else if( pUrcDataLength == NULL )
+    {
+        LogError( ( "Cellular_BG96UrcDataCallback : pUrcDataLength is NULL." ) );
+        pktStatus = CELLULAR_PKT_STATUS_BAD_PARAM;
+    }
+    else if( bufferLength < CELLULAR_BG96_DIRECT_PUSH_SOCKET_URC_PFREFIX_LEN )
+    {
+        /* Return CELLULAR_PKT_STATUS_PREFIX_MISMATCH if there is not enough information.
+         * pktio thread will continue to process the buffer. */
+        pktStatus = CELLULAR_PKT_STATUS_PREFIX_MISMATCH;
+    }
+    else if( strstr( pBuffer, CELLULAR_BG96_DIRECT_PUSH_SOCKET_URC_PFREFIX ) == NULL )
+    {
+        /* Return CELLULAR_PKT_STATUS_PREFIX_MISMATCH as the prefix is not match. */
+        pktStatus = CELLULAR_PKT_STATUS_PREFIX_MISMATCH;
+    }
+    else
+    {
+        /* Find the first complete line in the buffer. */
+        for( i = 0; i < bufferLength; i++ )
+        {
+            if( ( pTempLine[ i ] == '\r' ) || ( pTempLine[ i ] == '\n' ) )
+            {
+                break;
+            }
+        }
+
+        /* A complete line is received in the buffer. */
+        if( i > CELLULAR_BG96_DIRECT_PUSH_SOCKET_URC_PFREFIX_MAX_LEN )
+        {
+            /* The line length is longer than expected. */
+            pktStatus = CELLULAR_PKT_STATUS_INVALID_DATA;
+        }
+        else if( i >= bufferLength )
+        {
+            /* New line is not found. */
+            pktStatus = CELLULAR_PKT_STATUS_SIZE_MISMATCH;
+        }
+        else
+        {
+            strncpy( pLocalLinePtr, pTempLine, i );
+            pLocalLinePtr[ i ] = '\0';  /* Replace the change line '\r' with '\0'. */
+            prefixLength = i + 2;       /* Add 2 to the length to include "\r\n". */
+
+            /* Get the socket index. Socket index is the second token. */
+            atCoreStatus = Cellular_ATGetNextTok( &pLocalLinePtr, &pToken );
+            if( atCoreStatus == CELLULAR_AT_SUCCESS )
+            {
+                atCoreStatus = Cellular_ATGetNextTok( &pLocalLinePtr, &pToken );
+            }
+            if( atCoreStatus == CELLULAR_AT_SUCCESS )
+            {
+                atCoreStatus = Cellular_ATStrtoi( pToken, 10, &tempValue );
+            }
+            if( atCoreStatus == CELLULAR_AT_SUCCESS )
+            {
+                if( ( tempValue >= 0 ) &&
+                    ( tempValue < ( int32_t ) CELLULAR_NUM_SOCKET_MAX ) )
+                {
+                    socketIndex = ( uint32_t ) tempValue;
+                }
+                else
+                {
+                    LogError( ( "Cellular_BG96UrcDataCallback : Error processing in Socket index. token %s.", pToken ) );
+                    atCoreStatus = CELLULAR_AT_ERROR;
+                }
+            }
+
+            /* Get the data length. Data length is the third token. */
+            if( atCoreStatus == CELLULAR_AT_SUCCESS )
+            {
+                atCoreStatus = Cellular_ATGetNextTok( &pLocalLinePtr, &pToken );
+            }
+            if( atCoreStatus == CELLULAR_AT_SUCCESS )
+            {
+                atCoreStatus = Cellular_ATStrtoi( pToken, 10, &tempValue );
+            }
+            if( atCoreStatus == CELLULAR_AT_SUCCESS )
+            {
+                if( tempValue >= 0 )
+                {
+                    dataLength = ( uint32_t ) tempValue;
+                }
+                else
+                {
+                    LogError( ( "Cellular_BG96UrcDataCallback : Error processing in dataLength. token %s.", pToken ) );
+                    atCoreStatus = CELLULAR_AT_ERROR;
+                }
+            }
+
+            /* Translate atCoreStatus to packet status. */
+            pktStatus = _Cellular_TranslateAtCoreStatus( atCoreStatus );
+
+            if( pktStatus == CELLULAR_PKT_STATUS_OK )
+            {
+                /* Check if the complete buffer is received. */
+                if( ( prefixLength + dataLength + suffixLength ) > bufferLength )
+                {
+                    pktStatus = CELLULAR_PKT_STATUS_SIZE_MISMATCH;
+                }
+                else
+                {
+                    uint8_t *pDataPtr = NULL;
+                    uint32_t socketDataSize;
+                    CellularSocketContext_t * pSocketData;
+                    cellularModuleContext_t * pModuleContext = NULL;
+                    CellularError_t cellularStatus;
+
+                    pSocketData = _Cellular_GetSocketData( pContext, socketIndex );
+                    if( pSocketData == NULL )
+                    {
+                        /* Invalid socket index. */
+                        LogError( ( "Cellular_BG96UrcDataCallback : Invalid socket index %u.", socketIndex ) );
+                    }
+                    else if( pSocketData->socketState != SOCKETSTATE_CONNECTED )
+                    {
+                        /* Invalid socket state. This could be socket is not closed before
+                         * the cellular interface is inited. Return handled to pktio and discard the data. */
+                        LogWarn( ( "Cellular_BG96UrcDataCallback : Invalid socket state %u. Discard packet.", socketIndex ) );
+                    }
+                    else
+                    {
+                        cellularStatus = _Cellular_GetModuleContext( pContext, ( void ** ) &pModuleContext );
+                        if( cellularStatus == CELLULAR_SUCCESS )
+                        {
+                            /* Returns the complenet URC data length. Pktio thread will process
+                             * the data after. */
+                            *pUrcDataLength = prefixLength + dataLength + suffixLength;
+
+                            /* Copy the data to the socket buffer. */
+                            PlatformMutex_Lock( &pModuleContext->contextMutex );
+                            pDataPtr = pModuleContext->pSocketBuffer[ socketIndex ];
+                            socketDataSize = pModuleContext->pSocketDataSize[ socketIndex ];
+
+                            /* Check empty socket buffer left. */
+                            if( ( CELLULAR_BG96_DIRECT_PUSH_SOCKET_BUFFER_SIZE - socketDataSize ) > dataLength )
+                            {
+                                memcpy( &pDataPtr[ socketDataSize ], &pBuffer[ prefixLength ], dataLength );
+                                pModuleContext->pSocketDataSize[ socketIndex ] += dataLength;
+
+                                PlatformMutex_Unlock( &pModuleContext->contextMutex );
+
+                                /* Notify upper layer about data received. */
+                                _informDataReadyToUpperLayer( pSocketData );
+                            }
+                            else
+                            {
+                                LogError( ( "Cellular_BG96UrcDataCallback : drop socket %u packet. buffer left %u is not enough for %u.",
+                                    socketIndex, ( CELLULAR_BG96_DIRECT_PUSH_SOCKET_BUFFER_SIZE - socketDataSize ), dataLength ) );
+                            }
+                        }
+                        else
+                        {
+                            /* Get the module context error. */
+                            LogError( ( "Cellular_BG96UrcDataCallback : get module context failed." ) );
+                            pktStatus = CELLULAR_PKT_STATUS_FAILURE;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    return pktStatus;
+}
+#endif
 /*-----------------------------------------------------------*/
