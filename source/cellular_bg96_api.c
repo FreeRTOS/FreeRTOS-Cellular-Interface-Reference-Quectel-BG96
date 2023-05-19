@@ -2590,7 +2590,7 @@ CellularError_t Cellular_SocketRecv( CellularHandle_t cellularHandle,
     }
     else
     {
-        #if CELLULAR_BG96_SUPPPORT_DIRECT_PUSH_SOCKET
+        #if ( CELLULAR_BG96_SUPPPORT_DIRECT_PUSH_SOCKET == 1 )
         {
             if( socketHandle->dataMode == CELLULAR_ACCESSMODE_DIRECT_PUSH )
             {

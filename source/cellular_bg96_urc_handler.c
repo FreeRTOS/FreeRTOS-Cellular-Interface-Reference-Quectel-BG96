@@ -814,7 +814,7 @@ CellularPktStatus_t _Cellular_ParseSimstat( char * pInputStr,
 
 /*-----------------------------------------------------------*/
 
-#if CELLULAR_BG96_SUPPPORT_DIRECT_PUSH_SOCKET
+#if ( CELLULAR_BG96_SUPPPORT_DIRECT_PUSH_SOCKET == 1 )
 CellularPktStatus_t Cellular_BG96UrcDataCallback( void * pUrcDataCallbackContext,
                                                   char * pBuffer,
                                                   uint32_t bufferLength,

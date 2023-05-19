@@ -50,7 +50,7 @@
 #define DATA_READ_TIMEOUT_MS                       ( 50000UL )
 
 #ifndef CELLULAR_BG96_SUPPPORT_DIRECT_PUSH_SOCKET
-    #define CELLULAR_BG96_SUPPPORT_DIRECT_PUSH_SOCKET    1
+    #define CELLULAR_BG96_SUPPPORT_DIRECT_PUSH_SOCKET    0
 #endif
 
 #ifndef CELLULAR_BG96_DIRECT_PUSH_SOCKET_BUFFER_SIZE
@@ -87,7 +87,7 @@ typedef struct cellularModuleContext
     uint8_t dnsIndex;              /* DNS query current index. */
     char * pDnsUsrData;            /* DNS user data to store the result. */
 
-    #if CELLULAR_BG96_SUPPPORT_DIRECT_PUSH_SOCKET
+    #if ( CELLULAR_BG96_SUPPPORT_DIRECT_PUSH_SOCKET == 1 )
         uint8_t pSocketBuffer[ CELLULAR_NUM_SOCKET_MAX ][ CELLULAR_BG96_DIRECT_PUSH_SOCKET_BUFFER_SIZE ];
         uint32_t pSocketDataSize[ CELLULAR_NUM_SOCKET_MAX ];
     #endif  /* CELLULAR_BG96_SUPPPORT_DIRECT_PUSH_SOCKET. */
