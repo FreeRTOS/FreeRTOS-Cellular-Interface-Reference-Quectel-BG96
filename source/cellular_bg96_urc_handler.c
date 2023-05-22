@@ -815,12 +815,12 @@ CellularPktStatus_t _Cellular_ParseSimstat( char * pInputStr,
 /*-----------------------------------------------------------*/
 
 #if ( CELLULAR_BG96_SUPPPORT_DIRECT_PUSH_SOCKET == 1 )
-CellularPktStatus_t Cellular_BG96UrcDataCallback( void * pUrcDataCallbackContext,
-                                                  char * pBuffer,
-                                                  uint32_t bufferLength,
-                                                  uint32_t * pUrcDataLength )
+CellularPktStatus_t Cellular_BG96InputBufferCallback( void * pInputBufferCallbackContext,
+                                                      char * pBuffer,
+                                                      uint32_t bufferLength,
+                                                      uint32_t * pBufferLengthHandled )
 {
-    CellularContext_t * pContext = ( CellularContext_t * ) pUrcDataCallbackContext;
+    CellularContext_t * pContext = ( CellularContext_t * ) pInputBufferCallbackContext;
     cellularModuleContext_t * pModuleContext = NULL;
     char pLocaLine[ CELLULAR_BG96_DIRECT_PUSH_SOCKET_URC_PFREFIX_MAX_LEN ];
     char *pLocalLinePtr = pLocaLine;
@@ -835,19 +835,19 @@ CellularPktStatus_t Cellular_BG96UrcDataCallback( void * pUrcDataCallbackContext
     int32_t tempValue;
     uint32_t socketIndex;
 
-    if( pUrcDataCallbackContext == NULL )
+    if( pInputBufferCallbackContext == NULL )
     {
-        LogError( ( "Cellular_BG96UrcDataCallback : pUrcDataCallbackContext is NULL." ) );
+        LogError( ( "Cellular_BG96InputBufferCallback : pInputBufferCallbackContext is NULL." ) );
         pktStatus = CELLULAR_PKT_STATUS_BAD_PARAM;
     }
     else if( pBuffer == NULL )
     {
-        LogError( ( "Cellular_BG96UrcDataCallback : pBuffer is NULL." ) );
+        LogError( ( "Cellular_BG96InputBufferCallback : pBuffer is NULL." ) );
         pktStatus = CELLULAR_PKT_STATUS_BAD_PARAM;
     }
-    else if( pUrcDataLength == NULL )
+    else if( pBufferLengthHandled == NULL )
     {
-        LogError( ( "Cellular_BG96UrcDataCallback : pUrcDataLength is NULL." ) );
+        LogError( ( "Cellular_BG96InputBufferCallback : pBufferLengthHandled is NULL." ) );
         pktStatus = CELLULAR_PKT_STATUS_BAD_PARAM;
     }
     else if( bufferLength < CELLULAR_BG96_DIRECT_PUSH_SOCKET_URC_PFREFIX_LEN )
@@ -908,7 +908,7 @@ CellularPktStatus_t Cellular_BG96UrcDataCallback( void * pUrcDataCallbackContext
                 }
                 else
                 {
-                    LogError( ( "Cellular_BG96UrcDataCallback : Error processing in Socket index. token %s.", pToken ) );
+                    LogError( ( "Cellular_BG96InputBufferCallback : Error processing in Socket index. token %s.", pToken ) );
                     atCoreStatus = CELLULAR_AT_ERROR;
                 }
             }
@@ -930,7 +930,7 @@ CellularPktStatus_t Cellular_BG96UrcDataCallback( void * pUrcDataCallbackContext
                 }
                 else
                 {
-                    LogError( ( "Cellular_BG96UrcDataCallback : Error processing in dataLength. token %s.", pToken ) );
+                    LogError( ( "Cellular_BG96InputBufferCallback : Error processing in dataLength. token %s.", pToken ) );
                     atCoreStatus = CELLULAR_AT_ERROR;
                 }
             }
@@ -957,13 +957,13 @@ CellularPktStatus_t Cellular_BG96UrcDataCallback( void * pUrcDataCallbackContext
                     if( pSocketData == NULL )
                     {
                         /* Invalid socket index. */
-                        LogError( ( "Cellular_BG96UrcDataCallback : Invalid socket index %u.", socketIndex ) );
+                        LogError( ( "Cellular_BG96InputBufferCallback : Invalid socket index %u.", socketIndex ) );
                     }
                     else if( pSocketData->socketState != SOCKETSTATE_CONNECTED )
                     {
                         /* Invalid socket state. This could be socket is not closed before
                          * the cellular interface is inited. Return handled to pktio and discard the data. */
-                        LogWarn( ( "Cellular_BG96UrcDataCallback : Invalid socket state %u. Discard packet.", socketIndex ) );
+                        LogWarn( ( "Cellular_BG96InputBufferCallback : Invalid socket state %u. Discard packet.", socketIndex ) );
                     }
                     else
                     {
@@ -972,7 +972,7 @@ CellularPktStatus_t Cellular_BG96UrcDataCallback( void * pUrcDataCallbackContext
                         {
                             /* Returns the complenet URC data length. Pktio thread will process
                              * the data after. */
-                            *pUrcDataLength = prefixLength + dataLength + suffixLength;
+                            *pBufferLengthHandled = prefixLength + dataLength + suffixLength;
 
                             /* Copy the data to the socket buffer. */
                             PlatformMutex_Lock( &pModuleContext->contextMutex );
@@ -992,14 +992,14 @@ CellularPktStatus_t Cellular_BG96UrcDataCallback( void * pUrcDataCallbackContext
                             }
                             else
                             {
-                                LogError( ( "Cellular_BG96UrcDataCallback : drop socket %u packet. buffer left %u is not enough for %u.",
+                                LogError( ( "Cellular_BG96InputBufferCallback : drop socket %u packet. buffer left %u is not enough for %u.",
                                     socketIndex, ( CELLULAR_BG96_DIRECT_PUSH_SOCKET_BUFFER_SIZE - socketDataSize ), dataLength ) );
                             }
                         }
                         else
                         {
                             /* Get the module context error. */
-                            LogError( ( "Cellular_BG96UrcDataCallback : get module context failed." ) );
+                            LogError( ( "Cellular_BG96InputBufferCallback : get module context failed." ) );
                             pktStatus = CELLULAR_PKT_STATUS_FAILURE;
                         }
                     }

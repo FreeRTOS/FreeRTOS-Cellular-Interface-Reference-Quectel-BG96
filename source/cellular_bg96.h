@@ -100,10 +100,10 @@ typedef struct cellularModuleContext
 CellularPktStatus_t _Cellular_ParseSimstat( char * pInputStr,
                                             CellularSimCardState_t * pSimState );
 
-CellularPktStatus_t Cellular_BG96UrcDataCallback( void * pCallbackContext,
-                                                  char * pLine,
-                                                  uint32_t lineLength,
-                                                  uint32_t * pUrcBufferLength );
+CellularPktStatus_t Cellular_BG96InputBufferCallback( void * pInputBufferCallbackContext,
+                                                      char * pBuffer,
+                                                      uint32_t bufferLength,
+                                                      uint32_t * pBufferLengthHandled );
 
 extern CellularAtParseTokenMap_t CellularUrcHandlerTable[];
 extern uint32_t CellularUrcHandlerTableSize;

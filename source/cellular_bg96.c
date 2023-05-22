@@ -185,7 +185,7 @@ CellularError_t Cellular_ModuleInit( const CellularContext_t * pContext,
             /* Register the URC data callback. */
             if( cellularStatus == CELLULAR_SUCCESS )
             {
-                cellularStatus = _Cellular_RegisterUrcDataCallback( pContext, Cellular_BG96UrcDataCallback, pContext );
+                cellularStatus = _Cellular_RegisterInputBufferCallback( pContext, Cellular_BG96InputBufferCallback, pContext );
             }
         }
         #endif /* CELLULAR_BG96_SUPPPORT_DIRECT_PUSH_SOCKET. */
