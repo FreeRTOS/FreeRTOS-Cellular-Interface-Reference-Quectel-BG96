@@ -2590,50 +2590,51 @@ CellularError_t Cellular_SocketRecv( CellularHandle_t cellularHandle,
                 cellularStatus = _Cellular_TranslatePktStatus( pktStatus );
             }
         }
+
         #if ( CELLULAR_BG96_SUPPPORT_DIRECT_PUSH_SOCKET == 1 )
-        else if( socketHandle->dataMode == CELLULAR_ACCESSMODE_DIRECT_PUSH )
-        {
-            /* Socket data is returned in URC with direct push mode and store in
-             * in the buffer of module context. Copy the data from the buffer and
-             * decrease the data length of the buffer. */
-            cellularModuleContext_t * pModuleContext = NULL;
-            uint8_t *pSocketDataPtr;
-            uint32_t socketDataLength;
-
-            cellularStatus = _Cellular_GetModuleContext( pContext, ( void ** ) &pModuleContext );
-
-            if( cellularStatus != CELLULAR_SUCCESS )
+            else if( socketHandle->dataMode == CELLULAR_ACCESSMODE_DIRECT_PUSH )
             {
-                pktStatus = CELLULAR_PKT_STATUS_INVALID_HANDLE;
-            }
-            else
-            {
-                PlatformMutex_Lock( &pModuleContext->contextMutex );
+                /* Socket data is returned in URC with direct push mode and store in
+                 * in the buffer of module context. Copy the data from the buffer and
+                 * decrease the data length of the buffer. */
+                cellularModuleContext_t * pModuleContext = NULL;
+                uint8_t * pSocketDataPtr;
+                uint32_t socketDataLength;
 
-                pSocketDataPtr = ( uint8_t * )&pModuleContext->pSocketBuffer[ socketHandle->socketId ];
-                socketDataLength = pModuleContext->pSocketDataSize[ socketHandle->socketId ];
+                cellularStatus = _Cellular_GetModuleContext( pContext, ( void ** ) &pModuleContext );
 
-                if( bufferLength > socketDataLength )
+                if( cellularStatus != CELLULAR_SUCCESS )
                 {
-                    *pReceivedDataLength = socketDataLength;
+                    pktStatus = CELLULAR_PKT_STATUS_INVALID_HANDLE;
                 }
                 else
                 {
-                    *pReceivedDataLength = bufferLength;
+                    PlatformMutex_Lock( &pModuleContext->contextMutex );
+
+                    pSocketDataPtr = ( uint8_t * ) &pModuleContext->pSocketBuffer[ socketHandle->socketId ];
+                    socketDataLength = pModuleContext->pSocketDataSize[ socketHandle->socketId ];
+
+                    if( bufferLength > socketDataLength )
+                    {
+                        *pReceivedDataLength = socketDataLength;
+                    }
+                    else
+                    {
+                        *pReceivedDataLength = bufferLength;
+                    }
+
+                    /* Copy the data to the socket buffer. */
+                    memcpy( pBuffer, pSocketDataPtr, *pReceivedDataLength );
+
+                    /* Garbage collection. Decrease the size of data in socket buffer
+                     * and move the data to start of socket buffer. */
+                    pModuleContext->pSocketDataSize[ socketHandle->socketId ] -= *pReceivedDataLength;
+                    memmove( pSocketDataPtr, &pSocketDataPtr[ *pReceivedDataLength ], ( socketDataLength - *pReceivedDataLength ) );
+
+                    PlatformMutex_Unlock( &pModuleContext->contextMutex );
                 }
-
-                /* Copy the data to the socket buffer. */
-                memcpy( pBuffer, pSocketDataPtr, *pReceivedDataLength );
-
-                /* Garbage collection. Decrease the size of data in socket buffer
-                 * and move the data to start of socket buffer. */
-                pModuleContext->pSocketDataSize[ socketHandle->socketId ] -= *pReceivedDataLength;
-                memmove( pSocketDataPtr, &pSocketDataPtr[ *pReceivedDataLength ], ( socketDataLength - *pReceivedDataLength ) );
-
-                PlatformMutex_Unlock( &pModuleContext->contextMutex );
             }
-        }
-        #endif   /* CELLULAR_BG96_SUPPPORT_DIRECT_PUSH_SOCKET. */
+        #endif /* CELLULAR_BG96_SUPPPORT_DIRECT_PUSH_SOCKET. */
         else
         {
             LogError( ( "storeAccessModeAndAddress, Access mode not supported %d.",

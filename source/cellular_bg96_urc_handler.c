@@ -40,8 +40,8 @@
 
 /*-----------------------------------------------------------*/
 
-#define CELLULAR_BG96_DIRECT_PUSH_SOCKET_URC_PFREFIX        "+QIURC: \"recv\","
-#define CELLULAR_BG96_DIRECT_PUSH_SOCKET_URC_PFREFIX_LEN    15
+#define CELLULAR_BG96_DIRECT_PUSH_SOCKET_URC_PFREFIX            "+QIURC: \"recv\","
+#define CELLULAR_BG96_DIRECT_PUSH_SOCKET_URC_PFREFIX_LEN        15
 
 /* The length for the string "+QIURC: \"recv\",<socket_index:1>,<socket_size:1~4>\r\n". */
 #define CELLULAR_BG96_DIRECT_PUSH_SOCKET_URC_PFREFIX_MAX_LEN    24
@@ -68,7 +68,7 @@ static CellularPktStatus_t prvParseDirectPushURCPrefix( char * pBuffer,
                                                         uint32_t * pSocketIndex,
                                                         uint32_t * pDataLength );
 static CellularPktStatus_t prvStoreDirectPushSocketData( CellularContext_t * pContext,
-                                                         char *pBuffer,
+                                                         char * pBuffer,
                                                          uint32_t prefixLength,
                                                          uint32_t socketIndex,
                                                          uint32_t dataLength );
@@ -766,12 +766,13 @@ static void _Cellular_ProcessModemRdy( CellularContext_t * pContext,
 /*-----------------------------------------------------------*/
 
 #if ( CELLULAR_BG96_SUPPPORT_DIRECT_PUSH_SOCKET == 1 )
-    /**
-     * @brief Extract information from direct push socket URC.
-     * In the following example, prefix length is 20, socket index is 0 and data length is 4.
-     * +QIURC: "recv",0,4\r\n
-     * test\r\n
-     */
+
+/**
+ * @brief Extract information from direct push socket URC.
+ * In the following example, prefix length is 20, socket index is 0 and data length is 4.
+ * +QIURC: "recv",0,4\r\n
+ * test\r\n
+ */
     static CellularPktStatus_t prvParseDirectPushURCPrefix( char * pBuffer,
                                                             uint32_t bufferLength,
                                                             uint32_t * pPrefixLength,
@@ -779,7 +780,7 @@ static void _Cellular_ProcessModemRdy( CellularContext_t * pContext,
                                                             uint32_t * pDataLength )
     {
         char pLocaLine[ CELLULAR_BG96_DIRECT_PUSH_SOCKET_URC_PFREFIX_MAX_LEN ];
-        char *pLocalLinePtr = pLocaLine;
+        char * pLocalLinePtr = pLocaLine;
         char * pToken;
         CellularPktStatus_t pktStatus = CELLULAR_PKT_STATUS_OK;
         CellularATError_t atCoreStatus;
@@ -809,19 +810,22 @@ static void _Cellular_ProcessModemRdy( CellularContext_t * pContext,
         else
         {
             strncpy( pLocalLinePtr, pBuffer, i );
-            pLocalLinePtr[ i ] = '\0';  /* Replace the change line '\r' with '\0'. */
-            *pPrefixLength = i + 2;       /* Add 2 to the length to include "\r\n". */
+            pLocalLinePtr[ i ] = '\0'; /* Replace the change line '\r' with '\0'. */
+            *pPrefixLength = i + 2;    /* Add 2 to the length to include "\r\n". */
 
             /* Get the socket index. Socket index is the second token. */
             atCoreStatus = Cellular_ATGetNextTok( &pLocalLinePtr, &pToken );
+
             if( atCoreStatus == CELLULAR_AT_SUCCESS )
             {
                 atCoreStatus = Cellular_ATGetNextTok( &pLocalLinePtr, &pToken );
             }
+
             if( atCoreStatus == CELLULAR_AT_SUCCESS )
             {
                 atCoreStatus = Cellular_ATStrtoi( pToken, 10, &tempValue );
             }
+
             if( atCoreStatus == CELLULAR_AT_SUCCESS )
             {
                 if( ( tempValue >= 0 ) &&
@@ -841,10 +845,12 @@ static void _Cellular_ProcessModemRdy( CellularContext_t * pContext,
             {
                 atCoreStatus = Cellular_ATGetNextTok( &pLocalLinePtr, &pToken );
             }
+
             if( atCoreStatus == CELLULAR_AT_SUCCESS )
             {
                 atCoreStatus = Cellular_ATStrtoi( pToken, 10, &tempValue );
             }
+
             if( atCoreStatus == CELLULAR_AT_SUCCESS )
             {
                 if( tempValue >= 0 )
@@ -864,20 +870,21 @@ static void _Cellular_ProcessModemRdy( CellularContext_t * pContext,
 
         return pktStatus;
     }
-#endif
+#endif /* if ( CELLULAR_BG96_SUPPPORT_DIRECT_PUSH_SOCKET == 1 ) */
 /*-----------------------------------------------------------*/
 
 #if ( CELLULAR_BG96_SUPPPORT_DIRECT_PUSH_SOCKET == 1 )
-    /**
-     * @brief Copy socket data in URC to the socekt buffer in module context.
-     */
+
+/**
+ * @brief Copy socket data in URC to the socekt buffer in module context.
+ */
     static CellularPktStatus_t prvStoreDirectPushSocketData( CellularContext_t * pContext,
-                                                             char *pBuffer,
+                                                             char * pBuffer,
                                                              uint32_t prefixLength,
                                                              uint32_t socketIndex,
                                                              uint32_t dataLength )
     {
-        uint8_t *pDataPtr = NULL;
+        uint8_t * pDataPtr = NULL;
         uint32_t socketDataSize;
         CellularSocketContext_t * pSocketData;
         cellularModuleContext_t * pModuleContext = NULL;
@@ -885,6 +892,7 @@ static void _Cellular_ProcessModemRdy( CellularContext_t * pContext,
         CellularPktStatus_t pktStatus = CELLULAR_PKT_STATUS_OK;
 
         pSocketData = _Cellular_GetSocketData( pContext, socketIndex );
+
         if( pSocketData == NULL )
         {
             /* Invalid socket index. */
@@ -900,6 +908,7 @@ static void _Cellular_ProcessModemRdy( CellularContext_t * pContext,
         else
         {
             cellularStatus = _Cellular_GetModuleContext( pContext, ( void ** ) &pModuleContext );
+
             if( cellularStatus == CELLULAR_SUCCESS )
             {
                 /* Copy the data to the socket buffer. */
@@ -921,7 +930,7 @@ static void _Cellular_ProcessModemRdy( CellularContext_t * pContext,
                 else
                 {
                     LogError( ( "Cellular_BG96InputBufferCallback : drop socket %u packet. buffer left %u is not enough for %u.",
-                        socketIndex, ( CELLULAR_BG96_DIRECT_PUSH_SOCKET_BUFFER_SIZE - socketDataSize ), dataLength ) );
+                                socketIndex, ( CELLULAR_BG96_DIRECT_PUSH_SOCKET_BUFFER_SIZE - socketDataSize ), dataLength ) );
                     pktStatus = CELLULAR_PKT_STATUS_FAILURE;
                 }
             }
@@ -932,9 +941,10 @@ static void _Cellular_ProcessModemRdy( CellularContext_t * pContext,
                 pktStatus = CELLULAR_PKT_STATUS_FAILURE;
             }
         }
+
         return pktStatus;
     }
-#endif
+#endif /* if ( CELLULAR_BG96_SUPPPORT_DIRECT_PUSH_SOCKET == 1 ) */
 /*-----------------------------------------------------------*/
 
 /* Cellular common prototype. */
@@ -1005,7 +1015,7 @@ CellularPktStatus_t _Cellular_ParseSimstat( char * pInputStr,
         uint32_t socketIndex;
         uint32_t dataLength;
         uint32_t prefixLength;
-        const uint32_t suffixLength = 2;    /* The "\r\n" after the data stream. */
+        const uint32_t suffixLength = 2; /* The "\r\n" after the data stream. */
         CellularPktStatus_t pktStatus;
 
         if( pInputBufferCallbackContext == NULL )
@@ -1053,6 +1063,7 @@ CellularPktStatus_t _Cellular_ParseSimstat( char * pInputStr,
             {
                 /* Store the socket URC to a buffer in module context. */
                 pktStatus = prvStoreDirectPushSocketData( pContext, pBuffer, prefixLength, socketIndex, dataLength );
+
                 if( pktStatus == CELLULAR_PKT_STATUS_OK )
                 {
                     /* Returns the complenet URC data length. Pktio thread will process
@@ -1064,5 +1075,5 @@ CellularPktStatus_t _Cellular_ParseSimstat( char * pInputStr,
 
         return pktStatus;
     }
-#endif
+#endif /* if ( CELLULAR_BG96_SUPPPORT_DIRECT_PUSH_SOCKET == 1 ) */
 /*-----------------------------------------------------------*/
