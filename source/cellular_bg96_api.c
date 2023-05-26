@@ -2538,6 +2538,11 @@ CellularError_t Cellular_SocketRecv( CellularHandle_t cellularHandle,
         LogError( ( "Cellular_SocketRecv: Invalid socket handle." ) );
         cellularStatus = CELLULAR_INVALID_HANDLE;
     }
+    else if( socketHandle->socketId >= CELLULAR_NUM_SOCKET_MAX )
+    {
+        LogError( ( "Cellular_SocketRecv: Invalid socket index." ) );
+        cellularStatus = CELLULAR_BAD_PARAMETER;
+    }
     else if( ( pBuffer == NULL ) || ( pReceivedDataLength == NULL ) || ( bufferLength == 0U ) )
     {
         LogError( ( "Cellular_SocketRecv: Bad input Param." ) );
