@@ -840,32 +840,40 @@ static void _Cellular_ProcessModemRdy( CellularContext_t * pContext,
                 }
             }
 
-            /* Get the data length. Data length is the third token. */
-            if( atCoreStatus == CELLULAR_AT_SUCCESS )
+            if( pLocalLinePtr[ 0 ] == '\0' )
             {
-                atCoreStatus = Cellular_ATGetNextTok( &pLocalLinePtr, &pToken );
+                /* The third token is empty. This is a buffer access mode URC. */
+                pktStatus = CELLULAR_PKT_STATUS_PREFIX_MISMATCH;
             }
-
-            if( atCoreStatus == CELLULAR_AT_SUCCESS )
+            else
             {
-                atCoreStatus = Cellular_ATStrtoi( pToken, 10, &tempValue );
-            }
-
-            if( atCoreStatus == CELLULAR_AT_SUCCESS )
-            {
-                if( tempValue >= 0 )
+                /* Get the data length. Data length is the third token. */
+                if( atCoreStatus == CELLULAR_AT_SUCCESS )
                 {
-                    *pDataLength = ( uint32_t ) tempValue;
+                    atCoreStatus = Cellular_ATGetNextTok( &pLocalLinePtr, &pToken );
                 }
-                else
-                {
-                    LogError( ( "Cellular_BG96InputBufferCallback : Error processing in dataLength. token %s.", pToken ) );
-                    atCoreStatus = CELLULAR_AT_ERROR;
-                }
-            }
 
-            /* Translate atCoreStatus to packet status to indicate error. */
-            pktStatus = _Cellular_TranslateAtCoreStatus( atCoreStatus );
+                if( atCoreStatus == CELLULAR_AT_SUCCESS )
+                {
+                    atCoreStatus = Cellular_ATStrtoi( pToken, 10, &tempValue );
+                }
+
+                if( atCoreStatus == CELLULAR_AT_SUCCESS )
+                {
+                    if( tempValue >= 0 )
+                    {
+                        *pDataLength = ( uint32_t ) tempValue;
+                    }
+                    else
+                    {
+                        LogError( ( "Cellular_BG96InputBufferCallback : Error processing in dataLength. token %s.", pToken ) );
+                        atCoreStatus = CELLULAR_AT_ERROR;
+                    }
+                }
+
+                /* Translate atCoreStatus to packet status to indicate error. */
+                pktStatus = _Cellular_TranslateAtCoreStatus( atCoreStatus );
+            }
         }
 
         return pktStatus;
