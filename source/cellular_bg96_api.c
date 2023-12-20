@@ -1879,12 +1879,6 @@ static CellularError_t storeAccessModeAndAddress( CellularContext_t * pContext,
                     socketHandle->socketState ) );
         cellularStatus = CELLULAR_INTERNAL_FAILURE;
     }
-    else if( dataAccessMode != CELLULAR_ACCESSMODE_BUFFER )
-    {
-        LogError( ( "storeAccessModeAndAddress, Access mode not supported %d",
-                    dataAccessMode ) );
-        cellularStatus = CELLULAR_UNSUPPORTED;
-    }
     else
     {
         socketHandle->remoteSocketAddress.port = pRemoteSocketAddress->port;
@@ -2623,6 +2617,11 @@ CellularError_t Cellular_SocketRecv( CellularHandle_t cellularHandle,
         LogError( ( "Cellular_SocketRecv: Invalid socket handle." ) );
         cellularStatus = CELLULAR_INVALID_HANDLE;
     }
+    else if( socketHandle->socketId >= CELLULAR_NUM_SOCKET_MAX )
+    {
+        LogError( ( "Cellular_SocketRecv: Invalid socket index." ) );
+        cellularStatus = CELLULAR_BAD_PARAMETER;
+    }
     else if( ( pBuffer == NULL ) || ( pReceivedDataLength == NULL ) || ( bufferLength == 0U ) )
     {
         LogError( ( "Cellular_SocketRecv: Bad input Param." ) );
@@ -2644,33 +2643,87 @@ CellularError_t Cellular_SocketRecv( CellularHandle_t cellularHandle,
     }
     else
     {
-        /* Update recvLen to maximum module length. */
-        if( CELLULAR_MAX_RECV_DATA_LEN <= bufferLength )
+        if( socketHandle->dataMode == CELLULAR_ACCESSMODE_BUFFER )
         {
-            recvLen = ( uint32_t ) CELLULAR_MAX_RECV_DATA_LEN;
+            /* Update recvLen to maximum module length. */
+            if( CELLULAR_MAX_RECV_DATA_LEN <= bufferLength )
+            {
+                recvLen = ( uint32_t ) CELLULAR_MAX_RECV_DATA_LEN;
+            }
+
+            /* Update receive timeout to default timeout if not set with setsocketopt. */
+            if( socketHandle->recvTimeoutMs != 0U )
+            {
+                recvTimeout = socketHandle->recvTimeoutMs;
+            }
+
+            /* Form the AT command. */
+
+            /* The return value of snprintf is not used.
+             * The max length of the string is fixed and checked offline. */
+            /* coverity[misra_c_2012_rule_21_6_violation]. */
+            ( void ) snprintf( cmdBuf, CELLULAR_AT_CMD_TYPICAL_MAX_SIZE,
+                               "%s%ld,%ld", "AT+QIRD=", socketHandle->socketId, recvLen );
+            pktStatus = _Cellular_TimeoutAtcmdDataRecvRequestWithCallback( pContext,
+                                                                           atReqSocketRecv, recvTimeout, socketRecvDataPrefix, NULL );
+
+            if( pktStatus != CELLULAR_PKT_STATUS_OK )
+            {
+                /* Reset data handling parameters. */
+                LogError( ( "_Cellular_RecvData: Data Receive fail, pktStatus: %d", pktStatus ) );
+                cellularStatus = _Cellular_TranslatePktStatus( pktStatus );
+            }
         }
 
-        /* Update receive timeout to default timeout if not set with setsocketopt. */
-        if( socketHandle->recvTimeoutMs != 0U )
+        #if ( CELLULAR_BG96_SUPPPORT_DIRECT_PUSH_SOCKET == 1 )
+            else if( socketHandle->dataMode == CELLULAR_ACCESSMODE_DIRECT_PUSH )
+            {
+                /* Socket data is returned in URC with direct push mode and store in
+                 * in the buffer of module context. Copy the data from the buffer and
+                 * decrease the data length of the buffer. */
+                cellularModuleContext_t * pModuleContext = NULL;
+                uint8_t * pSocketDataPtr;
+                uint32_t socketDataLength;
+
+                cellularStatus = _Cellular_GetModuleContext( pContext, ( void ** ) &pModuleContext );
+
+                if( cellularStatus != CELLULAR_SUCCESS )
+                {
+                    pktStatus = CELLULAR_PKT_STATUS_INVALID_HANDLE;
+                }
+                else
+                {
+                    PlatformMutex_Lock( &pModuleContext->contextMutex );
+
+                    pSocketDataPtr = ( uint8_t * ) &pModuleContext->pSocketBuffer[ socketHandle->socketId ];
+                    socketDataLength = pModuleContext->pSocketDataSize[ socketHandle->socketId ];
+
+                    if( bufferLength > socketDataLength )
+                    {
+                        *pReceivedDataLength = socketDataLength;
+                    }
+                    else
+                    {
+                        *pReceivedDataLength = bufferLength;
+                    }
+
+                    /* Copy the data to the socket buffer. */
+                    memcpy( pBuffer, pSocketDataPtr, *pReceivedDataLength );
+
+                    /* Garbage collection. Decrease the size of data in socket buffer
+                     * and move the data to start of socket buffer. */
+                    pModuleContext->pSocketDataSize[ socketHandle->socketId ] -= *pReceivedDataLength;
+                    memmove( pSocketDataPtr, &pSocketDataPtr[ *pReceivedDataLength ], ( socketDataLength - *pReceivedDataLength ) );
+
+                    PlatformMutex_Unlock( &pModuleContext->contextMutex );
+                }
+            }
+        #endif /* CELLULAR_BG96_SUPPPORT_DIRECT_PUSH_SOCKET. */
+        else
         {
-            recvTimeout = socketHandle->recvTimeoutMs;
-        }
-
-        /* Form the AT command. */
-
-        /* The return value of snprintf is not used.
-         * The max length of the string is fixed and checked offline. */
-        /* coverity[misra_c_2012_rule_21_6_violation]. */
-        ( void ) snprintf( cmdBuf, CELLULAR_AT_CMD_TYPICAL_MAX_SIZE,
-                           "%s%ld,%ld", "AT+QIRD=", socketHandle->socketId, recvLen );
-        pktStatus = _Cellular_TimeoutAtcmdDataRecvRequestWithCallback( pContext,
-                                                                       atReqSocketRecv, recvTimeout, socketRecvDataPrefix, NULL );
-
-        if( pktStatus != CELLULAR_PKT_STATUS_OK )
-        {
-            /* Reset data handling parameters. */
-            LogError( ( "_Cellular_RecvData: Data Receive fail, pktStatus: %d", pktStatus ) );
-            cellularStatus = _Cellular_TranslatePktStatus( pktStatus );
+            LogError( ( "storeAccessModeAndAddress, Access mode not supported %d.",
+                        socketHandle->dataMode ) );
+            cellularStatus = CELLULAR_UNSUPPORTED;
         }
     }
 
@@ -3212,7 +3265,7 @@ CellularError_t Cellular_GetHostByName( CellularHandle_t cellularHandle,
 
     if( cellularStatus == CELLULAR_SUCCESS )
     {
-        PlatformMutex_Lock( &pModuleContext->dnsQueryMutex );
+        PlatformMutex_Lock( &pModuleContext->contextMutex );
         pModuleContext->dnsResultNumber = 0;
         pModuleContext->dnsIndex = 0;
         ( void ) xQueueReset( pModuleContext->pktDnsQueue );
@@ -3233,7 +3286,7 @@ CellularError_t Cellular_GetHostByName( CellularHandle_t cellularHandle,
         {
             LogError( ( "Cellular_GetHostByName: couldn't resolve host name" ) );
             cellularStatus = _Cellular_TranslatePktStatus( pktStatus );
-            PlatformMutex_Unlock( &pModuleContext->dnsQueryMutex );
+            PlatformMutex_Unlock( &pModuleContext->contextMutex );
         }
     }
 
@@ -3254,7 +3307,7 @@ CellularError_t Cellular_GetHostByName( CellularHandle_t cellularHandle,
             cellularStatus = CELLULAR_TIMEOUT;
         }
 
-        PlatformMutex_Unlock( &pModuleContext->dnsQueryMutex );
+        PlatformMutex_Unlock( &pModuleContext->contextMutex );
     }
 
     return cellularStatus;

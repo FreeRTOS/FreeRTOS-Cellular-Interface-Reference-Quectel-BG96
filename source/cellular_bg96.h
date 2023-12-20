@@ -33,21 +33,29 @@
 /* *INDENT-ON* */
 
 /* AT Command timeout for PDN activation */
-#define PDN_ACTIVATION_PACKET_REQ_TIMEOUT_MS       ( 150000UL )
+#define PDN_ACTIVATION_PACKET_REQ_TIMEOUT_MS             ( 150000UL )
 
 /* AT Command timeout for PDN deactivation. */
-#define PDN_DEACTIVATION_PACKET_REQ_TIMEOUT_MS     ( 40000UL )
+#define PDN_DEACTIVATION_PACKET_REQ_TIMEOUT_MS           ( 40000UL )
 
 /* AT Command timeout for Socket connection */
-#define SOCKET_CONNECT_PACKET_REQ_TIMEOUT_MS       ( 150000UL )
+#define SOCKET_CONNECT_PACKET_REQ_TIMEOUT_MS             ( 150000UL )
 
-#define PACKET_REQ_TIMEOUT_MS                      ( 5000UL )
+#define PACKET_REQ_TIMEOUT_MS                            ( 5000UL )
 
 /* AT Command timeout for Socket disconnection */
-#define SOCKET_DISCONNECT_PACKET_REQ_TIMEOUT_MS    ( 12000UL )
+#define SOCKET_DISCONNECT_PACKET_REQ_TIMEOUT_MS          ( 12000UL )
 
-#define DATA_SEND_TIMEOUT_MS                       ( 50000UL )
-#define DATA_READ_TIMEOUT_MS                       ( 50000UL )
+#define DATA_SEND_TIMEOUT_MS                             ( 50000UL )
+#define DATA_READ_TIMEOUT_MS                             ( 50000UL )
+
+#ifndef CELLULAR_BG96_SUPPPORT_DIRECT_PUSH_SOCKET
+    #define CELLULAR_BG96_SUPPPORT_DIRECT_PUSH_SOCKET    0
+#endif
+
+#ifndef CELLULAR_BG96_DIRECT_PUSH_SOCKET_BUFFER_SIZE
+    #define CELLULAR_BG96_DIRECT_PUSH_SOCKET_BUFFER_SIZE    ( 2048UL )
+#endif /* CELLULAR_BG96_DIRECT_PUSH_SOCKET_BUFFER_SIZE. */
 
 /**
  * @brief DNS query result.
@@ -71,12 +79,19 @@ typedef void ( * CellularDnsResultEventCallback_t )( cellularModuleContext_t * p
 
 typedef struct cellularModuleContext
 {
+    PlatformMutex_t contextMutex; /* Mutex for module context. */
+
     /* DNS related variables. */
-    PlatformMutex_t dnsQueryMutex; /* DNS query mutex to protect the following data. */
-    QueueHandle_t pktDnsQueue;     /* DNS queue to receive the DNS query result. */
-    uint8_t dnsResultNumber;       /* DNS query result number. */
-    uint8_t dnsIndex;              /* DNS query current index. */
-    char * pDnsUsrData;            /* DNS user data to store the result. */
+    QueueHandle_t pktDnsQueue; /* DNS queue to receive the DNS query result. */
+    uint8_t dnsResultNumber;   /* DNS query result number. */
+    uint8_t dnsIndex;          /* DNS query current index. */
+    char * pDnsUsrData;        /* DNS user data to store the result. */
+
+    #if ( CELLULAR_BG96_SUPPPORT_DIRECT_PUSH_SOCKET == 1 )
+        uint8_t pSocketBuffer[ CELLULAR_NUM_SOCKET_MAX ][ CELLULAR_BG96_DIRECT_PUSH_SOCKET_BUFFER_SIZE ];
+        uint32_t pSocketDataSize[ CELLULAR_NUM_SOCKET_MAX ];
+    #endif /* CELLULAR_BG96_SUPPPORT_DIRECT_PUSH_SOCKET. */
+
     CellularDnsResultEventCallback_t dnsEventCallback;
     /* Forward declaration to declar the callback function prototype. */
     /* coverity[misra_c_2012_rule_1_1_violation]. */
@@ -84,6 +99,11 @@ typedef struct cellularModuleContext
 
 CellularPktStatus_t _Cellular_ParseSimstat( char * pInputStr,
                                             CellularSimCardState_t * pSimState );
+
+CellularPktStatus_t Cellular_BG96InputBufferCallback( void * pInputBufferCallbackContext,
+                                                      char * pBuffer,
+                                                      uint32_t bufferLength,
+                                                      uint32_t * pBufferLengthHandled );
 
 extern CellularAtParseTokenMap_t CellularUrcHandlerTable[];
 extern uint32_t CellularUrcHandlerTableSize;
