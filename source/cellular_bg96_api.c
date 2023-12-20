@@ -273,7 +273,6 @@ static bool _parseSignalQuality( char * pQcsqPayload,
     int32_t tempValue = 0;
     bool parseStatus = true;
     CellularATError_t atCoreStatus = CELLULAR_AT_SUCCESS;
-    bool isGsm = false;
     qcsqSerivceMode_t eQcsqSysmode;
 
     if( ( pSignalInfo == NULL ) || ( pQcsqPayload == NULL ) )
