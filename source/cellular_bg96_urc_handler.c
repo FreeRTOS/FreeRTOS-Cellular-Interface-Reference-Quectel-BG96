@@ -80,16 +80,16 @@ static CellularPktStatus_t prvStoreDirectPushSocketData( CellularContext_t * pCo
 /* coverity[misra_c_2012_rule_8_7_violation] */
 CellularAtParseTokenMap_t CellularUrcHandlerTable[] =
 {
-    { "CEREG",             Cellular_CommonUrcProcessCereg },
-    { "CGREG",             Cellular_CommonUrcProcessCgreg },
-    { "CREG",              Cellular_CommonUrcProcessCreg  },
-    { "POWERED DOWN", _Cellular_ProcessPowerDown     },
-    { "PSM POWER DOWN",    _Cellular_ProcessPsmPowerDown  },
-    { "QIND",              _Cellular_ProcessIndication    },
-    { "QIOPEN",            _Cellular_ProcessSocketOpen    },
-    { "QIURC",             _Cellular_ProcessSocketurc     },
-    { "QSIMSTAT",          _Cellular_ProcessSimstat       },
-    { "RDY",               _Cellular_ProcessModemRdy      }
+    { "CEREG",          Cellular_CommonUrcProcessCereg },
+    { "CGREG",          Cellular_CommonUrcProcessCgreg },
+    { "CREG",           Cellular_CommonUrcProcessCreg  },
+    { "POWERED DOWN",   _Cellular_ProcessPowerDown     },
+    { "PSM POWER DOWN", _Cellular_ProcessPsmPowerDown  },
+    { "QIND",           _Cellular_ProcessIndication    },
+    { "QIOPEN",         _Cellular_ProcessSocketOpen    },
+    { "QIURC",          _Cellular_ProcessSocketurc     },
+    { "QSIMSTAT",       _Cellular_ProcessSimstat       },
+    { "RDY",            _Cellular_ProcessModemRdy      }
 };
 
 /* FreeRTOS Cellular Common Library porting interface. */

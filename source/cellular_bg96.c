@@ -181,13 +181,13 @@ CellularError_t Cellular_ModuleInit( const CellularContext_t * pContext,
         }
 
         #if ( CELLULAR_BG96_SUPPPORT_DIRECT_PUSH_SOCKET == 1 )
+        {
+            /* Register the URC data callback. */
+            if( cellularStatus == CELLULAR_SUCCESS )
             {
-                /* Register the URC data callback. */
-                if( cellularStatus == CELLULAR_SUCCESS )
-                {
-                    cellularStatus = _Cellular_RegisterInputBufferCallback( pContext, Cellular_BG96InputBufferCallback, pContext );
-                }
+                cellularStatus = _Cellular_RegisterInputBufferCallback( pContext, Cellular_BG96InputBufferCallback, pContext );
             }
+        }
         #endif /* CELLULAR_BG96_SUPPPORT_DIRECT_PUSH_SOCKET. */
     }
 

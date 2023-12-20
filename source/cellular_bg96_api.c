@@ -118,7 +118,8 @@ typedef struct _socketDataRecv
 /**
  * @brief AT+QCSQ supported service mode.
  */
-typedef enum qcsqSerivceMode {
+typedef enum qcsqSerivceMode
+{
     QCSQ_SYSMODE_NOSERVICE,
     QCSQ_SYSMODE_GSM,
     QCSQ_SYSMODE_CAT_M1,
@@ -257,6 +258,7 @@ static qcsqSerivceMode_t _parseQcsqServiceMode( char * pSysmod )
     {
         eQcsqSysmode = QCSQ_SYSMODE_INVALID;
     }
+
     return eQcsqSysmode;
 }
 
