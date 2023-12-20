@@ -129,7 +129,7 @@ typedef enum qcsqSerivceMode
 
 /*-----------------------------------------------------------*/
 
-static qcsqSerivceMode_t _parseQcsqServiceMode( char * pSysmod );
+static qcsqSerivceMode_t _parseQcsqSysmode( char * pSysmode );
 static bool _parseSignalQuality( char * pQcsqPayload,
                                  CellularSignalInfo_t * pSignalInfo );
 static CellularPktStatus_t _Cellular_RecvFuncGetSignalInfo( CellularContext_t * pContext,
@@ -234,23 +234,23 @@ static CellularPktStatus_t socketSendDataPrefix( void * pCallbackContext,
 
 /*-----------------------------------------------------------*/
 
-static qcsqSerivceMode_t _parseQcsqServiceMode( char * pSysmod )
+static qcsqSerivceMode_t _parseQcsqSysmode( char * pSysmode )
 {
     qcsqSerivceMode_t eQcsqSysmode;
 
-    if( strcmp( pSysmod, "NOSERVICE" ) == 0 )
+    if( strcmp( pSysmode, "NOSERVICE" ) == 0 )
     {
         eQcsqSysmode = QCSQ_SYSMODE_NOSERVICE;
     }
-    else if( strcmp( pSysmod, "GSM" ) == 0 )
+    else if( strcmp( pSysmode, "GSM" ) == 0 )
     {
         eQcsqSysmode = QCSQ_SYSMODE_GSM;
     }
-    else if( strcmp( pSysmod, "CAT-M1" ) == 0 )
+    else if( strcmp( pSysmode, "CAT-M1" ) == 0 )
     {
         eQcsqSysmode = QCSQ_SYSMODE_CAT_M1;
     }
-    else if( strcmp( pSysmod, "CAT-NB1" ) == 0 )
+    else if( strcmp( pSysmode, "CAT-NB1" ) == 0 )
     {
         eQcsqSysmode = QCSQ_SYSMODE_CAT_NB1;
     }
@@ -264,6 +264,8 @@ static qcsqSerivceMode_t _parseQcsqServiceMode( char * pSysmod )
 
 /*-----------------------------------------------------------*/
 
+/* Parsing the AT+QCSQ response. The response is of the following format:
+ * +QCSQ: <sysmode>,[,<value1>[,<value2>[,<value3>[,<value4>]]]]. */
 static bool _parseSignalQuality( char * pQcsqPayload,
                                  CellularSignalInfo_t * pSignalInfo )
 {
@@ -282,7 +284,7 @@ static bool _parseSignalQuality( char * pQcsqPayload,
 
     if( ( parseStatus == true ) && ( Cellular_ATGetNextTok( &pTmpQcsqPayload, &pToken ) == CELLULAR_AT_SUCCESS ) )
     {
-        eQcsqSysmode = _parseQcsqServiceMode( pToken );
+        eQcsqSysmode = _parseQcsqSysmode( pToken );
 
         if( eQcsqSysmode == QCSQ_SYSMODE_INVALID )
         {
