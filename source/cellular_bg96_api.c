@@ -103,11 +103,6 @@
 
 #define MAX_QIRD_STRING_PREFIX_STRING            ( 14U )    /* The max data prefix string is "+QIRD: 1460\r\n" */
 
-#define QCSQ_SYSMODE_NOSERIVCE                  "NOSERVICE"
-#define QCSQ_SYSMODE_GSM                        "GSM"
-#define QCSQ_SYSMODE_CAT_M1                     "CAT-M1"
-#define QCSQ_SYSMODE_CAT_NB1                    "CAT-NB1"
-
 /*-----------------------------------------------------------*/
 
 /**
@@ -133,6 +128,7 @@ typedef enum qcsqSerivceMode {
 
 /*-----------------------------------------------------------*/
 
+static qcsqSerivceMode_t _parseQcsqServiceMode( char * pSysmod );
 static bool _parseSignalQuality( char * pQcsqPayload,
                                  CellularSignalInfo_t * pSignalInfo );
 static CellularPktStatus_t _Cellular_RecvFuncGetSignalInfo( CellularContext_t * pContext,
@@ -237,25 +233,25 @@ static CellularPktStatus_t socketSendDataPrefix( void * pCallbackContext,
 
 /*-----------------------------------------------------------*/
 
-static qcsqSerivceMode_t _parseQcsqServiceMode( char * pToken )
+static qcsqSerivceMode_t _parseQcsqServiceMode( char * pSysmod )
 {
     qcsqSerivceMode_t eQcsqSysmode;
 
-    if( strcmp( pToken, "NOSERVICE" ) == 0 )
+    if( strcmp( pSysmod, "NOSERVICE" ) == 0 )
     {
-        eQcsqSysmode = QCSQ_SYSMODE_INVALID;
+        eQcsqSysmode = QCSQ_SYSMODE_NOSERVICE;
     }
-    else if( strcmp( pToken, "GSM" ) == 0 )
+    else if( strcmp( pSysmod, "GSM" ) == 0 )
     {
-        eQcsqSysmode = QCSQ_SYSMODE_INVALID;
+        eQcsqSysmode = QCSQ_SYSMODE_GSM;
     }
-    else if( strcmp( pToken, "CAT-M1" ) == 0 )
+    else if( strcmp( pSysmod, "CAT-M1" ) == 0 )
     {
-        eQcsqSysmode = QCSQ_SYSMODE_INVALID;
+        eQcsqSysmode = QCSQ_SYSMODE_CAT_M1;
     }
-    else if( strcmp( pToken, "CAT-NB1" ) == 0 )
+    else if( strcmp( pSysmod, "CAT-NB1" ) == 0 )
     {
-        eQcsqSysmode = QCSQ_SYSMODE_INVALID;
+        eQcsqSysmode = QCSQ_SYSMODE_CAT_NB1;
     }
     else
     {
@@ -263,6 +259,8 @@ static qcsqSerivceMode_t _parseQcsqServiceMode( char * pToken )
     }
     return eQcsqSysmode;
 }
+
+/*-----------------------------------------------------------*/
 
 static bool _parseSignalQuality( char * pQcsqPayload,
                                  CellularSignalInfo_t * pSignalInfo )
@@ -286,7 +284,7 @@ static bool _parseSignalQuality( char * pQcsqPayload,
 
         if( eQcsqSysmode == QCSQ_SYSMODE_INVALID )
         {
-            LogError( ( "_parseSignalQuality: Invalide service mode in QCSQ Response." ) );
+            LogError( ( "_parseSignalQuality: Invalide service mode in QCSQ Response %s.", pToken ) );
             parseStatus = false;
         }
     }
@@ -305,7 +303,7 @@ static bool _parseSignalQuality( char * pQcsqPayload,
         else
         {
             /* Parse value1( gsm_rssi or lte_rssi ) for GSM, CAT-M1 and CAT-NB1. */
-            if( Cellular_ATGetNextTok( &pTmpQcsqPayload, &pToken ) == CELLULAR_AT_SUCCESS ) )
+            if( Cellular_ATGetNextTok( &pTmpQcsqPayload, &pToken ) == CELLULAR_AT_SUCCESS )
             {
                 atCoreStatus = Cellular_ATStrtoi( pToken, 10, &tempValue );
 
