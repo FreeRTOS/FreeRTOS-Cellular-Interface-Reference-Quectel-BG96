@@ -129,7 +129,7 @@ typedef enum qcsqServiceMode
 
 /*-----------------------------------------------------------*/
 
-static qcsqServiceMode_t _parseQcsqSysmode( char * pSysmode );
+static qcsqServiceMode_t _parseQcsqServiceMode( char * pSysmode );
 static bool _parseSignalQuality( char * pQcsqPayload,
                                  CellularSignalInfo_t * pSignalInfo );
 static CellularPktStatus_t _Cellular_RecvFuncGetSignalInfo( CellularContext_t * pContext,
@@ -234,7 +234,7 @@ static CellularPktStatus_t socketSendDataPrefix( void * pCallbackContext,
 
 /*-----------------------------------------------------------*/
 
-static qcsqServiceMode_t _parseQcsqSysmode( char * pSysmode )
+static qcsqServiceMode_t _parseQcsqServiceMode( char * pSysmode )
 {
     qcsqServiceMode_t eQcsqSysmode;
 
@@ -266,7 +266,7 @@ static qcsqServiceMode_t _parseQcsqSysmode( char * pSysmode )
 
 /* Parsing the AT+QCSQ response. The response is of the following format:
  * +QCSQ: <sysmode>,[,<value1>[,<value2>[,<value3>[,<value4>]]]].
- * <sysmode>    <value1>    <value2>    <value3>    <value4>    
+ * <sysmode>    <value1>    <value2>    <value3>    <value4>
  * "NOSERVICE"  N/A         N/A         N/A         N/A
  * "GSM"        <gsm_rssi>  N/A         N/A         N/A
  * "CAT-M1"     <lte_resi>  <lte_rsrp>  <lte_sinr>  <lte_rsrq>
@@ -289,7 +289,7 @@ static bool _parseSignalQuality( char * pQcsqPayload,
 
     if( ( parseStatus == true ) && ( Cellular_ATGetNextTok( &pTmpQcsqPayload, &pToken ) == CELLULAR_AT_SUCCESS ) )
     {
-        eQcsqSysmode = _parseQcsqSysmode( pToken );
+        eQcsqSysmode = _parseQcsqServiceMode( pToken );
 
         if( eQcsqSysmode == QCSQ_SYSMODE_INVALID )
         {
