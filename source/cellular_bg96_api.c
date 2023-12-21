@@ -118,18 +118,18 @@ typedef struct _socketDataRecv
 /**
  * @brief AT+QCSQ supported service mode.
  */
-typedef enum qcsqSerivceMode
+typedef enum qcsqServiceMode
 {
     QCSQ_SYSMODE_NOSERVICE,
     QCSQ_SYSMODE_GSM,
     QCSQ_SYSMODE_CAT_M1,
     QCSQ_SYSMODE_CAT_NB1,
     QCSQ_SYSMODE_INVALID
-} qcsqSerivceMode_t;
+} qcsqServiceMode_t;
 
 /*-----------------------------------------------------------*/
 
-static qcsqSerivceMode_t _parseQcsqSysmode( char * pSysmode );
+static qcsqServiceMode_t _parseQcsqSysmode( char * pSysmode );
 static bool _parseSignalQuality( char * pQcsqPayload,
                                  CellularSignalInfo_t * pSignalInfo );
 static CellularPktStatus_t _Cellular_RecvFuncGetSignalInfo( CellularContext_t * pContext,
@@ -234,9 +234,9 @@ static CellularPktStatus_t socketSendDataPrefix( void * pCallbackContext,
 
 /*-----------------------------------------------------------*/
 
-static qcsqSerivceMode_t _parseQcsqSysmode( char * pSysmode )
+static qcsqServiceMode_t _parseQcsqSysmode( char * pSysmode )
 {
-    qcsqSerivceMode_t eQcsqSysmode;
+    qcsqServiceMode_t eQcsqSysmode;
 
     if( strcmp( pSysmode, "NOSERVICE" ) == 0 )
     {
@@ -265,7 +265,13 @@ static qcsqSerivceMode_t _parseQcsqSysmode( char * pSysmode )
 /*-----------------------------------------------------------*/
 
 /* Parsing the AT+QCSQ response. The response is of the following format:
- * +QCSQ: <sysmode>,[,<value1>[,<value2>[,<value3>[,<value4>]]]]. */
+ * +QCSQ: <sysmode>,[,<value1>[,<value2>[,<value3>[,<value4>]]]].
+ * <sysmode>    <value1>    <value2>    <value3>    <value4>    
+ * "NOSERVICE"  N/A         N/A         N/A         N/A
+ * "GSM"        <gsm_rssi>  N/A         N/A         N/A
+ * "CAT-M1"     <lte_resi>  <lte_rsrp>  <lte_sinr>  <lte_rsrq>
+ * "CAT-NB1"    <lte_resi>  <lte_rsrp>  <lte_sinr>  <lte_rsrq>
+ */
 static bool _parseSignalQuality( char * pQcsqPayload,
                                  CellularSignalInfo_t * pSignalInfo )
 {
@@ -273,7 +279,7 @@ static bool _parseSignalQuality( char * pQcsqPayload,
     int32_t tempValue = 0;
     bool parseStatus = true;
     CellularATError_t atCoreStatus = CELLULAR_AT_SUCCESS;
-    qcsqSerivceMode_t eQcsqSysmode;
+    qcsqServiceMode_t eQcsqSysmode;
 
     if( ( pSignalInfo == NULL ) || ( pQcsqPayload == NULL ) )
     {
