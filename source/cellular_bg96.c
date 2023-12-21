@@ -68,7 +68,7 @@ uint32_t CellularSrcTokenSuccessTableSize = sizeof( CellularSrcTokenSuccessTable
 /* FreeRTOS Cellular Common Library porting interface. */
 /* coverity[misra_c_2012_rule_8_7_violation] */
 const char * CellularUrcTokenWoPrefixTable[] =
-{ "NORMAL POWER DOWN", "PSM POWER DOWN", "RDY" };
+{ "POWERED DOWN", "PSM POWER DOWN", "RDY" };
 /* FreeRTOS Cellular Common Library porting interface. */
 /* coverity[misra_c_2012_rule_8_7_violation] */
 uint32_t CellularUrcTokenWoPrefixTableSize = sizeof( CellularUrcTokenWoPrefixTable ) / sizeof( char * );
@@ -181,13 +181,13 @@ CellularError_t Cellular_ModuleInit( const CellularContext_t * pContext,
         }
 
         #if ( CELLULAR_BG96_SUPPPORT_DIRECT_PUSH_SOCKET == 1 )
+        {
+            /* Register the URC data callback. */
+            if( cellularStatus == CELLULAR_SUCCESS )
             {
-                /* Register the URC data callback. */
-                if( cellularStatus == CELLULAR_SUCCESS )
-                {
-                    cellularStatus = _Cellular_RegisterInputBufferCallback( pContext, Cellular_BG96InputBufferCallback, pContext );
-                }
+                cellularStatus = _Cellular_RegisterInputBufferCallback( pContext, Cellular_BG96InputBufferCallback, pContext );
             }
+        }
         #endif /* CELLULAR_BG96_SUPPPORT_DIRECT_PUSH_SOCKET. */
     }
 

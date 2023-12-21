@@ -115,8 +115,21 @@ typedef struct _socketDataRecv
     CellularSocketAddress_t * pRemoteSocketAddress;
 } _socketDataRecv_t;
 
+/**
+ * @brief AT+QCSQ supported service mode.
+ */
+typedef enum qcsqServiceMode
+{
+    QCSQ_SYSMODE_NOSERVICE,
+    QCSQ_SYSMODE_GSM,
+    QCSQ_SYSMODE_CAT_M1,
+    QCSQ_SYSMODE_CAT_NB1,
+    QCSQ_SYSMODE_INVALID
+} qcsqServiceMode_t;
+
 /*-----------------------------------------------------------*/
 
+static qcsqServiceMode_t _parseQcsqServiceMode( char * pSysmode );
 static bool _parseSignalQuality( char * pQcsqPayload,
                                  CellularSignalInfo_t * pSignalInfo );
 static CellularPktStatus_t _Cellular_RecvFuncGetSignalInfo( CellularContext_t * pContext,
@@ -221,6 +234,44 @@ static CellularPktStatus_t socketSendDataPrefix( void * pCallbackContext,
 
 /*-----------------------------------------------------------*/
 
+static qcsqServiceMode_t _parseQcsqServiceMode( char * pSysmode )
+{
+    qcsqServiceMode_t eQcsqSysmode;
+
+    if( strcmp( pSysmode, "NOSERVICE" ) == 0 )
+    {
+        eQcsqSysmode = QCSQ_SYSMODE_NOSERVICE;
+    }
+    else if( strcmp( pSysmode, "GSM" ) == 0 )
+    {
+        eQcsqSysmode = QCSQ_SYSMODE_GSM;
+    }
+    else if( strcmp( pSysmode, "CAT-M1" ) == 0 )
+    {
+        eQcsqSysmode = QCSQ_SYSMODE_CAT_M1;
+    }
+    else if( strcmp( pSysmode, "CAT-NB1" ) == 0 )
+    {
+        eQcsqSysmode = QCSQ_SYSMODE_CAT_NB1;
+    }
+    else
+    {
+        eQcsqSysmode = QCSQ_SYSMODE_INVALID;
+    }
+
+    return eQcsqSysmode;
+}
+
+/*-----------------------------------------------------------*/
+
+/* Parsing the AT+QCSQ response. The response is of the following format:
+ * +QCSQ: <sysmode>,[,<value1>[,<value2>[,<value3>[,<value4>]]]].
+ * <sysmode>    <value1>    <value2>    <value3>    <value4>
+ * "NOSERVICE"  N/A         N/A         N/A         N/A
+ * "GSM"        <gsm_rssi>  N/A         N/A         N/A
+ * "CAT-M1"     <lte_resi>  <lte_rsrp>  <lte_sinr>  <lte_rsrq>
+ * "CAT-NB1"    <lte_resi>  <lte_rsrp>  <lte_sinr>  <lte_rsrq>
+ */
 static bool _parseSignalQuality( char * pQcsqPayload,
                                  CellularSignalInfo_t * pSignalInfo )
 {
@@ -228,6 +279,7 @@ static bool _parseSignalQuality( char * pQcsqPayload,
     int32_t tempValue = 0;
     bool parseStatus = true;
     CellularATError_t atCoreStatus = CELLULAR_AT_SUCCESS;
+    qcsqServiceMode_t eQcsqSysmode;
 
     if( ( pSignalInfo == NULL ) || ( pQcsqPayload == NULL ) )
     {
@@ -237,10 +289,11 @@ static bool _parseSignalQuality( char * pQcsqPayload,
 
     if( ( parseStatus == true ) && ( Cellular_ATGetNextTok( &pTmpQcsqPayload, &pToken ) == CELLULAR_AT_SUCCESS ) )
     {
-        if( ( strcmp( pToken, "GSM" ) != 0 ) &&
-            ( strcmp( pToken, "CAT-M1" ) != 0 ) &&
-            ( strcmp( pToken, "CAT-NB1" ) != 0 ) )
+        eQcsqSysmode = _parseQcsqServiceMode( pToken );
+
+        if( eQcsqSysmode == QCSQ_SYSMODE_INVALID )
         {
+            LogError( ( "_parseSignalQuality: Invalide service mode in QCSQ Response %s.", pToken ) );
             parseStatus = false;
         }
     }
@@ -250,82 +303,115 @@ static bool _parseSignalQuality( char * pQcsqPayload,
         parseStatus = false;
     }
 
-    if( ( parseStatus == true ) && ( Cellular_ATGetNextTok( &pTmpQcsqPayload, &pToken ) == CELLULAR_AT_SUCCESS ) )
+    if( parseStatus == true )
     {
-        atCoreStatus = Cellular_ATStrtoi( pToken, 10, &tempValue );
-
-        if( atCoreStatus == CELLULAR_AT_SUCCESS )
+        if( eQcsqSysmode == QCSQ_SYSMODE_NOSERVICE )
         {
-            pSignalInfo->rssi = ( int16_t ) tempValue;
+            pSignalInfo->rssi = CELLULAR_INVALID_SIGNAL_VALUE;
         }
         else
         {
-            LogError( ( "_parseSignalQuality: Error in processing RSSI. Token %s", pToken ) );
-            parseStatus = false;
+            /* Parse value1( gsm_rssi or lte_rssi ) for GSM, CAT-M1 and CAT-NB1. */
+            if( Cellular_ATGetNextTok( &pTmpQcsqPayload, &pToken ) == CELLULAR_AT_SUCCESS )
+            {
+                atCoreStatus = Cellular_ATStrtoi( pToken, 10, &tempValue );
+
+                if( atCoreStatus == CELLULAR_AT_SUCCESS )
+                {
+                    pSignalInfo->rssi = ( int16_t ) tempValue;
+                }
+                else
+                {
+                    LogError( ( "_parseSignalQuality: Error in processing RSSI. Token %s", pToken ) );
+                    parseStatus = false;
+                }
+            }
+            else
+            {
+                parseStatus = false;
+            }
         }
     }
-    else
-    {
-        parseStatus = false;
-    }
 
-    if( ( parseStatus == true ) && ( Cellular_ATGetNextTok( &pTmpQcsqPayload, &pToken ) == CELLULAR_AT_SUCCESS ) )
+    /* Parse value2( lte_rsrp ), value3( lte_sinr ) and value4( lte_rsrq ) fields
+     * for CAT-M1 and CAT-NB1. */
+    if( parseStatus == true )
     {
-        atCoreStatus = Cellular_ATStrtoi( pToken, 10, &tempValue );
-
-        if( atCoreStatus == CELLULAR_AT_SUCCESS )
+        if( ( eQcsqSysmode == QCSQ_SYSMODE_NOSERVICE ) || ( eQcsqSysmode == QCSQ_SYSMODE_GSM ) )
         {
-            pSignalInfo->rsrp = ( int16_t ) tempValue;
+            pSignalInfo->rsrp = CELLULAR_INVALID_SIGNAL_VALUE;
+            pSignalInfo->sinr = CELLULAR_INVALID_SIGNAL_VALUE;
+            pSignalInfo->rsrq = CELLULAR_INVALID_SIGNAL_VALUE;
         }
         else
         {
-            LogError( ( "_parseSignalQuality: Error in processing RSRP. Token %s", pToken ) );
-            parseStatus = false;
-        }
-    }
-    else
-    {
-        parseStatus = false;
-    }
+            /* Get the token for value 2. */
+            atCoreStatus = Cellular_ATGetNextTok( &pTmpQcsqPayload, &pToken );
 
-    if( ( parseStatus == true ) && ( Cellular_ATGetNextTok( &pTmpQcsqPayload, &pToken ) == CELLULAR_AT_SUCCESS ) )
-    {
-        atCoreStatus = Cellular_ATStrtoi( pToken, 10, &tempValue );
+            if( atCoreStatus == CELLULAR_AT_SUCCESS )
+            {
+                atCoreStatus = Cellular_ATStrtoi( pToken, 10, &tempValue );
+            }
 
-        if( atCoreStatus == CELLULAR_AT_SUCCESS )
-        {
-            /* SINR is reported as an integer value ranging from 0 to 250 representing 1/5 of a dB.
-             * Value 0 correspond to -20 dBm and 250 corresponds to +30 dBm. */
-            pSignalInfo->sinr = ( int16_t ) ( SIGNAL_QUALITY_SINR_MIN_VALUE + ( ( tempValue ) / ( SIGNAL_QUALITY_SINR_DIVISIBILITY_FACTOR ) ) );
-        }
-        else
-        {
-            LogError( ( "_parseSignalQuality: Error in processing SINR. pToken %s", pToken ) );
-            parseStatus = false;
-        }
-    }
-    else
-    {
-        parseStatus = false;
-    }
+            /* Parse the lte_rsrp value. */
+            if( atCoreStatus == CELLULAR_AT_SUCCESS )
+            {
+                pSignalInfo->rsrp = ( int16_t ) tempValue;
+            }
+            else
+            {
+                LogError( ( "_parseSignalQuality: Error in processing RSRP. Token %s", pToken ) );
+            }
 
-    if( ( parseStatus == true ) && ( Cellular_ATGetNextTok( &pTmpQcsqPayload, &pToken ) == CELLULAR_AT_SUCCESS ) )
-    {
-        atCoreStatus = Cellular_ATStrtoi( pToken, 10, &tempValue );
+            /* Get the token for value 3. */
+            if( atCoreStatus == CELLULAR_AT_SUCCESS )
+            {
+                atCoreStatus = Cellular_ATGetNextTok( &pTmpQcsqPayload, &pToken );
+            }
 
-        if( atCoreStatus == CELLULAR_AT_SUCCESS )
-        {
-            pSignalInfo->rsrq = ( int16_t ) tempValue;
+            /* Parse the lte_sinr value. */
+            if( atCoreStatus == CELLULAR_AT_SUCCESS )
+            {
+                atCoreStatus = Cellular_ATStrtoi( pToken, 10, &tempValue );
+
+                if( atCoreStatus == CELLULAR_AT_SUCCESS )
+                {
+                    /* SINR is reported as an integer value ranging from 0 to 250 representing 1/5 of a dB.
+                     * Value 0 correspond to -20 dBm and 250 corresponds to +30 dBm. */
+                    pSignalInfo->sinr = ( int16_t ) ( SIGNAL_QUALITY_SINR_MIN_VALUE + ( ( tempValue ) / ( SIGNAL_QUALITY_SINR_DIVISIBILITY_FACTOR ) ) );
+                }
+                else
+                {
+                    LogError( ( "_parseSignalQuality: Error in processing SINR. pToken %s", pToken ) );
+                }
+            }
+
+            /* Get the token for value 4. */
+            if( atCoreStatus == CELLULAR_AT_SUCCESS )
+            {
+                atCoreStatus = Cellular_ATGetNextTok( &pTmpQcsqPayload, &pToken );
+            }
+
+            /* Parse the lte_rsrq value. */
+            if( atCoreStatus == CELLULAR_AT_SUCCESS )
+            {
+                atCoreStatus = Cellular_ATStrtoi( pToken, 10, &tempValue );
+
+                if( atCoreStatus == CELLULAR_AT_SUCCESS )
+                {
+                    pSignalInfo->rsrq = ( int16_t ) tempValue;
+                }
+                else
+                {
+                    LogError( ( "_parseSignalQuality: Error in processing RSRQ. Token %s", pToken ) );
+                }
+            }
+
+            if( atCoreStatus != CELLULAR_AT_SUCCESS )
+            {
+                parseStatus = false;
+            }
         }
-        else
-        {
-            LogError( ( "_parseSignalQuality: Error in processing RSRQ. Token %s", pToken ) );
-            parseStatus = false;
-        }
-    }
-    else
-    {
-        parseStatus = false;
     }
 
     return parseStatus;
