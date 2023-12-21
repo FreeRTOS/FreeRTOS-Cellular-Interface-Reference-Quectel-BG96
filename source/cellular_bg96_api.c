@@ -113,7 +113,6 @@ typedef struct _socketDataRecv
     uint32_t * pReceivedDataLength;
     uint8_t * pData;
     uint32_t dataLength;
-    CellularSocketAddress_t * pRemoteSocketAddress;
 } _socketDataRecv_t;
 
 /*-----------------------------------------------------------*/
@@ -2572,19 +2571,18 @@ CellularError_t Cellular_SocketRecv( CellularHandle_t cellularHandle,
     uint32_t recvLen = bufferLength;
     _socketDataRecv_t dataRecv =
     {
-        pReceivedDataLength,
-        pBuffer,
-        bufferLength,
-        NULL
+        .pReceivedDataLength = pReceivedDataLength,
+        .pData               = pBuffer,
+        .dataLength          = bufferLength
     };
     CellularAtReq_t atReqSocketRecv =
     {
-        cmdBuf,
-        CELLULAR_AT_MULTI_DATA_WO_PREFIX,
-        "+QIRD",
-        _Cellular_RecvFuncData,
-        ( void * ) &dataRecv,
-        sizeof( dataRecv )
+        .pAtCmd       = cmdBuf,
+        .atCmdType    = CELLULAR_AT_MULTI_DATA_WO_PREFIX,
+        .pAtRspPrefix = "+QIRD",
+        .respCallback = _Cellular_RecvFuncData,
+        .pData        = ( void * ) &dataRecv,
+        .dataLen      = sizeof( dataRecv )
     };
 
     cellularStatus = _Cellular_CheckLibraryStatus( pContext );
