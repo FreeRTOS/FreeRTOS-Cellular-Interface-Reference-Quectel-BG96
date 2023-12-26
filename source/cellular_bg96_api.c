@@ -101,7 +101,7 @@
 #define DATA_PREFIX_STRING_LENGTH                ( 6U )
 #define DATA_PREFIX_STRING_CHANGELINE_LENGTH     ( 2U )     /* The length of the change line "\r\n". */
 
-#define MAX_QIRD_STRING_PREFIX_STRING            ( 14U )    /* The max data prefix string is "+QIRD: 1460\r\n" */
+#define MAX_QIRD_PREFIX_STRING_LENGTH            ( 14U )    /* The max data prefix string is "+QIRD: 1460\r\n" */
 
 /*-----------------------------------------------------------*/
 
@@ -110,9 +110,9 @@
  */
 typedef struct _socketDataRecv
 {
-    uint32_t * pDataLen;
+    uint32_t * pReceivedDataLength;
     uint8_t * pData;
-    CellularSocketAddress_t * pRemoteSocketAddress;
+    uint32_t dataLength;
 } _socketDataRecv_t;
 
 /**
@@ -1314,16 +1314,16 @@ static CellularATError_t getDataFromResp( const CellularATCommandResponse_t * pA
     uint32_t dataLenToCopy = 0;
 
     /* Check if the received data size is greater than the output buffer size. */
-    if( *pDataRecv->pDataLen > outBufSize )
+    if( *pDataRecv->pReceivedDataLength > outBufSize )
     {
         LogError( ( "Data is turncated, received data length %d, out buffer size %d",
-                    *pDataRecv->pDataLen, outBufSize ) );
+                    *pDataRecv->pReceivedDataLength, outBufSize ) );
         dataLenToCopy = outBufSize;
-        *pDataRecv->pDataLen = outBufSize;
+        *pDataRecv->pReceivedDataLength = outBufSize;
     }
     else
     {
-        dataLenToCopy = *pDataRecv->pDataLen;
+        dataLenToCopy = *pDataRecv->pReceivedDataLength;
     }
 
     /* Data is stored in the next intermediate response. */
@@ -1342,7 +1342,7 @@ static CellularATError_t getDataFromResp( const CellularATCommandResponse_t * pA
             atCoreStatus = CELLULAR_AT_BAD_PARAMETER;
         }
     }
-    else if( *pDataRecv->pDataLen == 0U )
+    else if( *pDataRecv->pReceivedDataLength == 0U )
     {
         /* Receive command success but no data. */
         LogDebug( ( "Receive Data: no data" ) );
@@ -1381,9 +1381,14 @@ static CellularPktStatus_t _Cellular_RecvFuncData( CellularContext_t * pContext,
         LogError( ( "Receive Data: response is invalid" ) );
         pktStatus = CELLULAR_PKT_STATUS_FAILURE;
     }
-    else if( ( pDataRecv == NULL ) || ( pDataRecv->pData == NULL ) || ( pDataRecv->pDataLen == NULL ) )
+    else if( ( pDataRecv == NULL ) || ( pDataRecv->pData == NULL ) || ( pDataRecv->pReceivedDataLength == NULL ) )
     {
         LogError( ( "Receive Data: Bad param" ) );
+        pktStatus = CELLULAR_PKT_STATUS_BAD_PARAM;
+    }
+    else if( dataLen != sizeof( _socketDataRecv_t ) )
+    {
+        LogError( ( "Receive Data: Bad data length. Data length should be the size of _socketDataRecv_t." ) );
         pktStatus = CELLULAR_PKT_STATUS_BAD_PARAM;
     }
     else
@@ -1405,7 +1410,7 @@ static CellularPktStatus_t _Cellular_RecvFuncData( CellularContext_t * pContext,
             {
                 if( ( tempValue >= ( int32_t ) 0 ) && ( tempValue < ( ( int32_t ) CELLULAR_MAX_RECV_DATA_LEN + 1 ) ) )
                 {
-                    *pDataRecv->pDataLen = ( uint32_t ) tempValue;
+                    *pDataRecv->pReceivedDataLength = ( uint32_t ) tempValue;
                 }
                 else
                 {
@@ -1418,7 +1423,7 @@ static CellularPktStatus_t _Cellular_RecvFuncData( CellularContext_t * pContext,
         /* Process the data buffer. */
         if( atCoreStatus == CELLULAR_AT_SUCCESS )
         {
-            atCoreStatus = getDataFromResp( pAtResp, pDataRecv, dataLen );
+            atCoreStatus = getDataFromResp( pAtResp, pDataRecv, pDataRecv->dataLength );
         }
 
         pktStatus = _Cellular_TranslateAtCoreStatus( atCoreStatus );
@@ -1773,6 +1778,21 @@ static CellularPktStatus_t _Cellular_RecvFuncGetPsmSettings( CellularContext_t *
 
 /*-----------------------------------------------------------*/
 
+/* This function returns the start of the data stream in ppDataStart and length in
+ * pDataLength. ppDataStart should indicate the memory address within pLine[ 0 ] ~ pLine[ lineLength ]
+ *
+ * Example BG96 QIRD AT command response:
+ * => AT+QIRD=0,15000\r\n
+ * <= +QIRD: 5\r\n
+ * <= test1\r\n
+ * <= OK\r\n
+ *
+ * pLine points to "+QIRD: 5\r\ntest1\r\n". ppDataStart should points to &pline[ 10 ]
+ * ,which stores the start of "test1". Length 5 should be returned in pDataLength.
+ *
+ * pLine may point to an incomplete line and a line with mismatched prefix. This
+ * callback function returns different packet status code accordingly.
+ */
 static CellularPktStatus_t socketRecvDataPrefix( void * pCallbackContext,
                                                  char * pLine,
                                                  uint32_t lineLength,
@@ -1781,14 +1801,25 @@ static CellularPktStatus_t socketRecvDataPrefix( void * pCallbackContext,
 {
     char * pDataStart = NULL;
     uint32_t prefixLineLength = 0U;
-    int32_t tempValue = 0;
+    int32_t receivedDataLength = 0;
     CellularATError_t atResult = CELLULAR_AT_SUCCESS;
-    CellularPktStatus_t pktStatus = CELLULAR_PKT_STATUS_OK;
+    CellularPktStatus_t pktStatus;
     uint32_t i = 0;
-    char pLocalLine[ MAX_QIRD_STRING_PREFIX_STRING + 1 ] = "\0";
-    uint32_t localLineLength = MAX_QIRD_STRING_PREFIX_STRING > lineLength ? lineLength : MAX_QIRD_STRING_PREFIX_STRING;
+    char pLocalLine[ MAX_QIRD_PREFIX_STRING_LENGTH + 1 ] = "\0";
+    uint32_t localLineLength = 0;
 
+    /* Callback context is not used in this function. */
     ( void ) pCallbackContext;
+
+    /* localLineLength keeps the maximum string length to compare. */
+    if( MAX_QIRD_PREFIX_STRING_LENGTH > lineLength )
+    {
+        localLineLength = lineLength;
+    }
+    else
+    {
+        localLineLength = MAX_QIRD_PREFIX_STRING_LENGTH;
+    }
 
     if( ( pLine == NULL ) || ( ppDataStart == NULL ) || ( pDataLength == NULL ) )
     {
@@ -1799,8 +1830,10 @@ static CellularPktStatus_t socketRecvDataPrefix( void * pCallbackContext,
         /* Check if the message is a data response. */
         if( strncmp( pLine, DATA_PREFIX_STRING, DATA_PREFIX_STRING_LENGTH ) == 0 )
         {
-            strncpy( pLocalLine, pLine, MAX_QIRD_STRING_PREFIX_STRING );
-            pLocalLine[ MAX_QIRD_STRING_PREFIX_STRING ] = '\0';
+            /* In order not to change the input buffer pLine, copy the maximum QIRD
+             * prefix string to the local buffer. */
+            strncpy( pLocalLine, pLine, MAX_QIRD_PREFIX_STRING_LENGTH );
+            pLocalLine[ MAX_QIRD_PREFIX_STRING_LENGTH ] = '\0';
             pDataStart = pLocalLine;
 
             /* Add a '\0' char at the end of the line. */
@@ -1814,46 +1847,71 @@ static CellularPktStatus_t socketRecvDataPrefix( void * pCallbackContext,
                 }
             }
 
+            /* BG96 expects a complete line to be received then the data stream. The
+             * input buffer doesn't contain a complete line. */
             if( i == localLineLength )
             {
-                LogDebug( ( "Data prefix invalid line : %s", pLocalLine ) );
-                pDataStart = NULL;
-            }
-        }
-
-        if( pDataStart != NULL )
-        {
-            atResult = Cellular_ATStrtoi( &pDataStart[ DATA_PREFIX_STRING_LENGTH ], 10, &tempValue );
-
-            if( ( atResult == CELLULAR_AT_SUCCESS ) && ( tempValue >= 0 ) &&
-                ( tempValue <= ( int32_t ) CELLULAR_MAX_RECV_DATA_LEN ) )
-            {
-                if( ( prefixLineLength + DATA_PREFIX_STRING_CHANGELINE_LENGTH ) > lineLength )
+                if( localLineLength == MAX_QIRD_PREFIX_STRING_LENGTH )
                 {
-                    /* More data is required. */
-                    *pDataLength = 0;
-                    pDataStart = NULL;
-                    pktStatus = CELLULAR_PKT_STATUS_SIZE_MISMATCH;
+                    /* A complete line is not found within MAX_QIRD_PREFIX_STRING_LENGTH.
+                     * Returns prefix mismatch here. Pktio can continue to parse
+                     * the string. */
+                    LogDebug( ( "Data prefix matched incomplete line : %s", pLocalLine ) );
+                    pktStatus = CELLULAR_PKT_STATUS_PREFIX_MISMATCH;
                 }
                 else
                 {
-                    pDataStart = &pLine[ prefixLineLength ];
-                    pDataStart[ 0 ] = '\0';
-                    pDataStart = &pDataStart[ DATA_PREFIX_STRING_CHANGELINE_LENGTH ];
-                    *pDataLength = ( uint32_t ) tempValue;
+                    /* A complete line is not found. The line doesn't contains enough
+                     * bytes for the prefix string. Pktio will call this callback
+                     * again with more data. */
+                    LogDebug( ( "Data prefix incomplete line : %s", pLocalLine ) );
+                    pktStatus = CELLULAR_PKT_STATUS_SIZE_MISMATCH;
                 }
+            }
+            else if( ( prefixLineLength + DATA_PREFIX_STRING_CHANGELINE_LENGTH ) > lineLength )
+            {
+                /* The complete changeline "\r\n" is not received. Returns size mismatch
+                 * to pktio. Pktio will call this callback again with more data. */
+                LogDebug( ( "Data prefix incomplete line : %s", pLocalLine ) );
+                pktStatus = CELLULAR_PKT_STATUS_SIZE_MISMATCH;
+            }
+            else
+            {
+                /* The input steam contains valid prefix and the line is ended with
+                 * "\r\n". Continue to parse the received data length. */
+                pktStatus = CELLULAR_PKT_STATUS_OK;
+            }
+        }
+        else
+        {
+            /* The prefix is not expected "+QIRD:". This is probably a URC response.
+             * returns CELLULAR_PKT_STATUS_PREFIX_MISMATCH to pktio. Pktio can continue
+             * to parse the string. */
+            pktStatus = CELLULAR_PKT_STATUS_PREFIX_MISMATCH;
+        }
 
+        /* This line contains a valid response prefix and a complete line. Continue
+         * to parse the <read_actual_length> field in this line. */
+        if( pktStatus == CELLULAR_PKT_STATUS_OK )
+        {
+            atResult = Cellular_ATStrtoi( &pDataStart[ DATA_PREFIX_STRING_LENGTH ], 10, &receivedDataLength );
+
+            if( ( atResult == CELLULAR_AT_SUCCESS ) &&
+                ( receivedDataLength >= 0 ) &&
+                ( receivedDataLength <= ( int32_t ) CELLULAR_MAX_RECV_DATA_LEN ) )
+            {
+                /* The input stream contains valid line. prefixLineLength + DATA_PREFIX_STRING_CHANGELINE_LENGTH
+                 * is the offset to the start of the data stream. */
+                *pDataLength = ( uint32_t ) receivedDataLength;
+                *ppDataStart = &pLine[ prefixLineLength + DATA_PREFIX_STRING_CHANGELINE_LENGTH ];
                 LogDebug( ( "DataLength %p at pktIo = %d", pDataStart, *pDataLength ) );
             }
             else
             {
-                *pDataLength = 0;
-                pDataStart = NULL;
-                LogError( ( "Data response received with wrong size" ) );
+                LogError( ( "Data response received with wrong size %s.", &pDataStart[ DATA_PREFIX_STRING_LENGTH ] ) );
+                pktStatus = CELLULAR_PKT_STATUS_FAILURE;
             }
         }
-
-        *ppDataStart = pDataStart;
     }
 
     return pktStatus;
@@ -2599,18 +2657,18 @@ CellularError_t Cellular_SocketRecv( CellularHandle_t cellularHandle,
     uint32_t recvLen = bufferLength;
     _socketDataRecv_t dataRecv =
     {
-        pReceivedDataLength,
-        pBuffer,
-        NULL
+        .pReceivedDataLength = pReceivedDataLength,
+        .pData               = pBuffer,
+        .dataLength          = bufferLength
     };
     CellularAtReq_t atReqSocketRecv =
     {
-        cmdBuf,
-        CELLULAR_AT_MULTI_DATA_WO_PREFIX,
-        "+QIRD",
-        _Cellular_RecvFuncData,
-        ( void * ) &dataRecv,
-        bufferLength,
+        .pAtCmd       = cmdBuf,
+        .atCmdType    = CELLULAR_AT_MULTI_DATA_WO_PREFIX,
+        .pAtRspPrefix = "+QIRD",
+        .respCallback = _Cellular_RecvFuncData,
+        .pData        = ( void * ) &dataRecv,
+        .dataLen      = sizeof( dataRecv )
     };
 
     cellularStatus = _Cellular_CheckLibraryStatus( pContext );
