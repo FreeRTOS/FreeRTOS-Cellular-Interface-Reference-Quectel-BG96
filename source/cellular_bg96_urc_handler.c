@@ -76,8 +76,6 @@ static CellularPktStatus_t prvStoreDirectPushSocketData( CellularContext_t * pCo
 /*-----------------------------------------------------------*/
 
 /* Try to Keep this map in Alphabetical order. */
-/* FreeRTOS Cellular Common Library porting interface. */
-/* coverity[misra_c_2012_rule_8_7_violation] */
 CellularAtParseTokenMap_t CellularUrcHandlerTable[] =
 {
     { "CEREG",          Cellular_CommonUrcProcessCereg },
@@ -92,8 +90,6 @@ CellularAtParseTokenMap_t CellularUrcHandlerTable[] =
     { "RDY",            _Cellular_ProcessModemRdy      }
 };
 
-/* FreeRTOS Cellular Common Library porting interface. */
-/* coverity[misra_c_2012_rule_8_7_violation] */
 uint32_t CellularUrcHandlerTableSize = sizeof( CellularUrcHandlerTable ) / sizeof( CellularAtParseTokenMap_t );
 
 /*-----------------------------------------------------------*/
@@ -148,8 +144,6 @@ static CellularPktStatus_t _parseSocketOpenNextTok( const char * pToken,
 
 /*-----------------------------------------------------------*/
 
-/* Cellular common prototype. */
-/* coverity[misra_c_2012_rule_8_13_violation] */
 static void _Cellular_ProcessSocketOpen( CellularContext_t * pContext,
                                          char * pInputLine )
 {
@@ -324,8 +318,6 @@ static CellularPktStatus_t _parseUrcIndicationCsq( const CellularContext_t * pCo
 
 /*-----------------------------------------------------------*/
 
-/* Cellular common prototype. */
-/* coverity[misra_c_2012_rule_8_13_violation] */
 static void _Cellular_ProcessIndication( CellularContext_t * pContext,
                                          char * pInputLine )
 {
@@ -612,8 +604,6 @@ static CellularPktStatus_t _parseSocketUrcDns( const CellularContext_t * pContex
 
 /*-----------------------------------------------------------*/
 
-/* Cellular common prototype. */
-/* coverity[misra_c_2012_rule_8_13_violation] */
 static void _Cellular_ProcessSocketurc( CellularContext_t * pContext,
                                         char * pInputLine )
 {
@@ -687,8 +677,6 @@ static void _Cellular_ProcessSocketurc( CellularContext_t * pContext,
 
 /*-----------------------------------------------------------*/
 
-/* Cellular common prototype. */
-/* coverity[misra_c_2012_rule_8_13_violation] */
 static void _Cellular_ProcessSimstat( CellularContext_t * pContext,
                                       char * pInputLine )
 {
@@ -702,8 +690,6 @@ static void _Cellular_ProcessSimstat( CellularContext_t * pContext,
 
 /*-----------------------------------------------------------*/
 
-/* Cellular common prototype. */
-/* coverity[misra_c_2012_rule_8_13_violation] */
 static void _Cellular_ProcessPowerDown( CellularContext_t * pContext,
                                         char * pInputLine )
 {
@@ -723,8 +709,6 @@ static void _Cellular_ProcessPowerDown( CellularContext_t * pContext,
 
 /*-----------------------------------------------------------*/
 
-/* Cellular common prototype. */
-/* coverity[misra_c_2012_rule_8_13_violation] */
 static void _Cellular_ProcessPsmPowerDown( CellularContext_t * pContext,
                                            char * pInputLine )
 {
@@ -744,8 +728,6 @@ static void _Cellular_ProcessPsmPowerDown( CellularContext_t * pContext,
 
 /*-----------------------------------------------------------*/
 
-/* Cellular common prototype. */
-/* coverity[misra_c_2012_rule_8_13_violation] */
 static void _Cellular_ProcessModemRdy( CellularContext_t * pContext,
                                        char * pInputLine )
 {
@@ -955,8 +937,6 @@ static void _Cellular_ProcessModemRdy( CellularContext_t * pContext,
 #endif /* if ( CELLULAR_BG96_SUPPPORT_DIRECT_PUSH_SOCKET == 1 ) */
 /*-----------------------------------------------------------*/
 
-/* Cellular common prototype. */
-/* coverity[misra_c_2012_rule_8_13_violation] */
 CellularPktStatus_t _Cellular_ParseSimstat( char * pInputStr,
                                             CellularSimCardState_t * pSimState )
 {
@@ -996,7 +976,6 @@ CellularPktStatus_t _Cellular_ParseSimstat( char * pInputStr,
                 /* Variable "tempValue" is ensured that it is valid and within
                  * a valid range. Hence, assigning the value at the  pointer of
                  * type cellular_SimCardState_t with an enum cast. */
-                /* coverity[misra_c_2012_rule_10_5_violation] */
                 *pSimState = ( CellularSimCardState_t ) tempValue;
             }
             else
