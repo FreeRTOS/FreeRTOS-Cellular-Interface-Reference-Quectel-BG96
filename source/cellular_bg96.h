@@ -57,6 +57,8 @@
     #define CELLULAR_BG96_DIRECT_PUSH_SOCKET_BUFFER_SIZE    ( 2048UL )
 #endif /* CELLULAR_BG96_DIRECT_PUSH_SOCKET_BUFFER_SIZE. */
 
+/*-----------------------------------------------------------*/
+
 /**
  * @brief DNS query result.
  */
@@ -93,9 +95,9 @@ typedef struct cellularModuleContext
     #endif /* CELLULAR_BG96_SUPPPORT_DIRECT_PUSH_SOCKET. */
 
     CellularDnsResultEventCallback_t dnsEventCallback;
-    /* Forward declaration to declar the callback function prototype. */
-    /* coverity[misra_c_2012_rule_1_1_violation]. */
 } cellularModuleContext_t;
+
+/*-----------------------------------------------------------*/
 
 CellularPktStatus_t _Cellular_ParseSimstat( char * pInputStr,
                                             CellularSimCardState_t * pSimState );
@@ -104,6 +106,8 @@ CellularPktStatus_t Cellular_BG96InputBufferCallback( void * pInputBufferCallbac
                                                       char * pBuffer,
                                                       uint32_t bufferLength,
                                                       uint32_t * pBufferLengthHandled );
+
+/*-----------------------------------------------------------*/
 
 extern CellularAtParseTokenMap_t CellularUrcHandlerTable[];
 extern uint32_t CellularUrcHandlerTableSize;
@@ -116,6 +120,8 @@ extern uint32_t CellularSrcTokenSuccessTableSize;
 
 extern const char * CellularUrcTokenWoPrefixTable[];
 extern uint32_t CellularUrcTokenWoPrefixTableSize;
+
+/*-----------------------------------------------------------*/
 
 /* *INDENT-OFF* */
 #ifdef __cplusplus
