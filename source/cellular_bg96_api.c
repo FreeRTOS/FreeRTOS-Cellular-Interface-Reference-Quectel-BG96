@@ -1104,8 +1104,9 @@ static CellularATError_t getPdnStatusParseToken( char * pToken,
 
         case ( CELLULAR_PDN_STATUS_POS_IP_ADDRESS ):
             LogDebug( ( "IP address: %s", pToken ) );
-            ( void ) memcpy( ( void * ) pPdnStatusBuffers->ipAddress.ipAddress,
-                             ( void * ) pToken, CELLULAR_IP_ADDRESS_MAX_SIZE + 1U );
+            ( void ) strncpy( pPdnStatusBuffers->ipAddress.ipAddress,
+                              pToken, CELLULAR_IP_ADDRESS_MAX_SIZE );
+            pPdnStatusBuffers->ipAddress.ipAddress[ CELLULAR_IP_ADDRESS_MAX_SIZE ] = '\0';
 
             if( pPdnStatusBuffers->pdnContextType == CELLULAR_PDN_CONTEXT_IPV4 )
             {

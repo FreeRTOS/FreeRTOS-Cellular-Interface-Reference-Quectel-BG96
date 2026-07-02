@@ -827,9 +827,9 @@ static void _Cellular_ProcessModemRdy( CellularContext_t * pContext,
         }
 
         /* A complete line is received in the buffer. */
-        if( i > CELLULAR_BG96_DIRECT_PUSH_SOCKET_URC_PFREFIX_MAX_LEN )
+        if( i >= CELLULAR_BG96_DIRECT_PUSH_SOCKET_URC_PFREFIX_MAX_LEN )
         {
-            /* The line length is longer than expected. */
+            /* The line length is longer than or equal to the buffer size. */
             pktStatus = CELLULAR_PKT_STATUS_INVALID_DATA;
         }
         else if( i >= bufferLength )
